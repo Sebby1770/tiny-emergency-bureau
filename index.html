@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A funny interactive tiny emergency triage desk built with HTML, CSS, and JavaScript."
+    />
+    <title>Bureau of Tiny Emergencies</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar" aria-label="Bureau status">
+        <a class="brand" href="#caseTitle" aria-label="Bureau of Tiny Emergencies home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span>
+            <strong>Bureau of Tiny Emergencies</strong>
+            <small>Department of Mildly Alarming Affairs</small>
+          </span>
+        </a>
+
+        <div class="status-strip" aria-live="polite">
+          <div class="status-item">
+            <span>Chaos</span>
+            <strong id="chaosValue">42</strong>
+          </div>
+          <div class="status-item">
+            <span>Morale</span>
+            <strong id="moraleValue">61</strong>
+          </div>
+          <div class="status-item">
+            <span>Forms</span>
+            <strong id="formsValue">18</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="desk-panel case-panel" aria-labelledby="caseTitle">
+          <div class="panel-header">
+            <span class="eyebrow">Open file</span>
+            <span id="caseNumber" class="case-number">CASE 0001</span>
+          </div>
+
+          <div class="paper-stack" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+
+          <h1 id="caseTitle">Loading tiny emergency...</h1>
+          <p id="caseSummary" class="case-summary"></p>
+
+          <dl class="case-facts">
+            <div>
+              <dt>Citizen</dt>
+              <dd id="caseCitizen">-</dd>
+            </div>
+            <div>
+              <dt>Risk</dt>
+              <dd>
+                <span class="risk-meter" aria-hidden="true">
+                  <span id="riskFill"></span>
+                </span>
+                <span id="riskLabel">-</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Evidence</dt>
+              <dd id="caseEvidence">-</dd>
+            </div>
+          </dl>
+
+          <div class="action-grid" aria-label="Case actions">
+            <button class="action-button approve" data-action="approve" type="button">
+              <span class="button-icon check-icon" aria-hidden="true"></span>
+              Approve
+            </button>
+            <button class="action-button deny" data-action="deny" type="button">
+              <span class="button-icon x-icon" aria-hidden="true"></span>
+              Deny
+            </button>
+            <button class="action-button escalate" data-action="escalate" type="button">
+              <span class="button-icon arrow-icon" aria-hidden="true"></span>
+              Escalate
+            </button>
+          </div>
+        </section>
+
+        <section class="visual-panel" aria-labelledby="cityTitle">
+          <div class="city-header">
+            <div>
+              <span class="eyebrow">Live jurisdiction</span>
+              <h2 id="cityTitle">Mini Metro No. 7</h2>
+            </div>
+            <button id="panicButton" class="panic-button" type="button">
+              <span class="lever" aria-hidden="true"><span></span></span>
+              Panic lever
+            </button>
+          </div>
+
+          <div class="canvas-wrap">
+            <canvas id="cityCanvas" width="960" height="560" aria-label="Animated city status"></canvas>
+            <div id="stampFlash" class="stamp-flash" aria-hidden="true">FILED</div>
+          </div>
+
+          <div class="ticker" aria-label="Bureau bulletin">
+            <span id="tickerText">Awaiting paperwork weather.</span>
+          </div>
+        </section>
+
+        <section class="desk-panel output-panel" aria-labelledby="outputTitle">
+          <div class="panel-header">
+            <span class="eyebrow">Official output</span>
+            <span id="rankBadge" class="rank-badge">Clerk Grade C</span>
+          </div>
+
+          <h2 id="outputTitle">Certificate</h2>
+          <div id="certificate" class="certificate" aria-live="polite">
+            <p class="cert-kicker">Pending Stamp</p>
+            <p class="cert-title">No nonsense has been certified yet.</p>
+            <p class="cert-body">Choose a decision and the bureau will manufacture confidence.</p>
+          </div>
+
+          <div class="machine">
+            <div id="stampPad" class="stamp-pad" aria-hidden="true">
+              <span>STAMP</span>
+            </div>
+            <button id="copyButton" class="copy-button" type="button">
+              <span class="button-icon copy-icon" aria-hidden="true"></span>
+              Copy certificate
+            </button>
+          </div>
+
+          <div class="mini-log" aria-label="Recent bureau activity">
+            <h3>Recent activity</h3>
+            <ul id="activityLog"></ul>
+          </div>
+        </section>
+      </main>
+
+      <section class="queue-band" aria-labelledby="queueTitle">
+        <div class="queue-heading">
+          <span class="eyebrow">Next disasters</span>
+          <h2 id="queueTitle">Incident queue</h2>
+        </div>
+        <div id="queueList" class="queue-list"></div>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
