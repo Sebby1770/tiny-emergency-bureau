@@ -2,6 +2,25 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 2026-07-05 v2
+
+### Added
+
+- **Service worker** (`sw.js`) — Caches static assets (`index.html`, `styles.css`, `script.js`, `config.js`, `manifest.json`) for offline play.
+- **Mid-shift save state** — Game state saved to `localStorage` (`bureau-shift-state`) on every decision; resume prompt if saved state is less than 24 hours old.
+- **Share shift** — Web Share API with clipboard fallback; shares rank, stamps, and verdict.
+- **Touch controls** — Swipe right to approve, swipe left to deny on the case panel; subtle swipe hint on mobile.
+- **Daily challenge** — "Daily desk" mode seeds case order from today's date; shows "Daily Challenge — Jul 5" label; stores daily best score locally.
+- **Procedural cases** — `generateProceduralCase(seed)` injects 2–3 generated cases into each shift queue.
+- **Supabase leaderboard** (optional) — `config.js` placeholders, SQL migration, and local **Hall of clerks** panel with remote or local top-5 fallback.
+- **Ambient desk hum** — Separate settings toggle for looping low-frequency office atmosphere via Web Audio.
+
+### Changed
+
+- Shifts now have a defined queue (base cases + procedural cases) instead of infinite looping.
+- Shift end screen shows verdict, score, and options to share or start a new shift.
+- Export summary includes verdict, score, coffee breaks, and badges.
+
 ## 2026-07-05
 
 ### Added

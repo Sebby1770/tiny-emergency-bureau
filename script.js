@@ -169,6 +169,58 @@ const cases = [
   }
 ];
 
+const proceduralTemplates = {
+  subjects: [
+    "The lobby fern",
+    "A rogue filing cabinet",
+    "The break-room microwave",
+    "A motivational poster",
+    "The elevator music playlist",
+    "A suspicious rubber band ball",
+    "The office goldfish",
+    "A haunted whiteboard marker"
+  ],
+  departments: [
+    "Facilities Whisper Unit",
+    "Department of Mild Vibrations",
+    "Sub-Basement Compliance",
+    "After-Hours Morale Patrol",
+    "Interim Desk Relations",
+    "The Velvet Annex"
+  ],
+  evidence: [
+    "Faint humming, three sticky notes, one dramatic sigh",
+    "Thermal readings, passive-aggressive memo, glitter residue",
+    "Security footage of nothing, yet somehow worse",
+    "A receipt for 'emotional overhead'",
+    "Witness testimony from a very confident mug",
+    "Forensic lint and a suspiciously warm keyboard"
+  ],
+  summaries: [
+    "has filed a complaint about being under-appreciated during quarterly reviews.",
+    "is refusing to function until someone says 'please' in triplicate.",
+    "claims the building's vibes are 'legally noncompliant' after 4 p.m.",
+    "demands a performance review and a corner office with better sunlight.",
+    "has started leaving cryptic Post-its that predict minor inconveniences.",
+    "insists it is now a consultant and bills by the existential hour."
+  ],
+  approve: [
+    "Approved with ceremonial nodding. Morale improved by exactly one polite smile.",
+    "Approved pending vibes. The subject immediately looked 8% more official.",
+    "Approved. A thank-you card was generated automatically and filed incorrectly."
+  ],
+  deny: [
+    "Denied. The subject sulked with impressive professionalism.",
+    "Denied. Paperwork increased, but dignity remained laminated.",
+    "Denied. The inbox has been asked to remain brave."
+  ],
+  escalate: [
+    "Escalated to a committee that meets exclusively during lunch.",
+    "Escalated upward. Upward responded with a calendar invite.",
+    "Escalated to Senior Vibes. They are reviewing the vibes."
+  ]
+};
+
 const tones = ["mint", "coral", "gold", "blue"];
 const actionTone = {
   approve: { chaos: -8, morale: 6, forms: 7, label: "Approved" },
@@ -178,6 +230,10 @@ const actionTone = {
 
 const SETTINGS_KEY = "bte-settings";
 const TUTORIAL_KEY = "bte-tutorial-seen";
+const SHIFT_STATE_KEY = "bureau-shift-state";
+const DAILY_BEST_KEY = "bureau-daily-best";
+const LOCAL_LEADERBOARD_KEY = "bureau-local-leaderboard";
+const SHIFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const scanClues = [
   "Forensic scan reveals the evidence was notarized by a rubber duck.",
@@ -206,6 +262,7 @@ const state = {
   chaos: 42,
   morale: 61,
   forms: 18,
+  coffee: 0,
   stamps: 0,
   particles: [],
   buildings: [],
@@ -213,14 +270,23 @@ const state = {
   certificateText: "",
   shiftStart: new Date(),
   shiftLog: [],
+  history: [],
+  badges: [],
+  shiftQueue: [],
+  shiftMode: "normal",
+  shiftEnded: false,
+  verdict: "",
   settings: {
     reducedMotion: false,
     darkDesk: false,
-    soundEffects: false
+    soundEffects: false,
+    ambientAudio: false
   }
 };
 
 let audioCtx = null;
+let ambientNodes = null;
+let pendingInit = false;
 
 const els = {
   chaos: document.querySelector("#chaosValue"),
@@ -233,6 +299,8 @@ const els = {
   riskFill: document.querySelector("#riskFill"),
   riskLabel: document.querySelector("#riskLabel"),
   caseEvidence: document.querySelector("#caseEvidence"),
+  casePanel: document.querySelector("#casePanel"),
+  swipeHint: document.querySelector("#swipeHint"),
   actionButtons: document.querySelectorAll("[data-action]"),
   certificate: document.querySelector("#certificate"),
   stampPad: document.querySelector("#stampPad"),
@@ -248,13 +316,25 @@ const els = {
   coffeeButton: document.querySelector("#coffeeButton"),
   hotlineButton: document.querySelector("#hotlineButton"),
   exportShiftButton: document.querySelector("#exportShiftButton"),
+  shareShiftButton: document.querySelector("#shareShiftButton"),
+  shiftEndPanel: document.querySelector("#shiftEndPanel"),
+  shiftVerdict: document.querySelector("#shiftVerdict"),
+  newShiftButton: document.querySelector("#newShiftButton"),
+  leaderboardList: document.querySelector("#leaderboardList"),
+  dailyDeskButton: document.querySelector("#dailyDeskButton"),
+  dailyLabel: document.querySelector("#dailyLabel"),
   settingsButton: document.querySelector("#settingsButton"),
   settingsDrawer: document.querySelector("#settingsDrawer"),
   settingReducedMotion: document.querySelector("#settingReducedMotion"),
   settingDarkDesk: document.querySelector("#settingDarkDesk"),
   settingSoundEffects: document.querySelector("#settingSoundEffects"),
+  settingAmbientAudio: document.querySelector("#settingAmbientAudio"),
   tutorialModal: document.querySelector("#tutorialModal"),
   tutorialDismiss: document.querySelector("#tutorialDismiss"),
+  resumeModal: document.querySelector("#resumeModal"),
+  resumeSummary: document.querySelector("#resumeSummary"),
+  resumeShiftButton: document.querySelector("#resumeShiftButton"),
+  discardShiftButton: document.querySelector("#discardShiftButton"),
   helpModal: document.querySelector("#helpModal"),
   helpButton: document.querySelector("#helpButton")
 };
@@ -265,12 +345,91 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function nextCaseIndex(offset = 0) {
-  return (state.index + offset + cases.length) % cases.length;
+function hashString(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seed) {
+  let t = seed + 0x6d2b79f5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function pickFrom(list, seed) {
+  return list[Math.floor(seededRandom(seed) * list.length)];
+}
+
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function dailyDateLabel() {
+  const now = new Date();
+  return now.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function generateProceduralCase(seed) {
+  const subject = pickFrom(proceduralTemplates.subjects, seed);
+  const department = pickFrom(proceduralTemplates.departments, seed + 1);
+  const evidence = pickFrom(proceduralTemplates.evidence, seed + 2);
+  const summaryTail = pickFrom(proceduralTemplates.summaries, seed + 3);
+  const risk = 35 + Math.floor(seededRandom(seed + 4) * 50);
+
+  return {
+    title: `${subject} requests formal recognition`,
+    citizen: department,
+    risk,
+    evidence,
+    summary: `${subject} ${summaryTail}`,
+    approve: pickFrom(proceduralTemplates.approve, seed + 5),
+    deny: pickFrom(proceduralTemplates.deny, seed + 6),
+    escalate: pickFrom(proceduralTemplates.escalate, seed + 7),
+    procedural: true
+  };
+}
+
+function seededShuffle(items, seed) {
+  const list = [...items];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(seededRandom(seed + i) * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+function buildShiftQueue(mode = "normal") {
+  const dateSeed = hashString(todayKey());
+  const baseSeed = mode === "daily" ? dateSeed : hashString(`${Date.now()}-${Math.random()}`);
+  const proceduralCount = 2 + Math.floor(seededRandom(baseSeed + 99) * 2);
+
+  const procedural = Array.from({ length: proceduralCount }, (_, i) =>
+    generateProceduralCase(baseSeed + 100 + i * 17)
+  );
+
+  let queue = [...cases, ...procedural];
+
+  if (mode === "daily") {
+    queue = seededShuffle(queue, dateSeed);
+  } else {
+    queue = seededShuffle(queue, baseSeed + 42);
+  }
+
+  return queue;
 }
 
 function currentCase() {
-  return cases[state.index];
+  return state.shiftQueue[state.index] || null;
+}
+
+function queueCaseAt(offset) {
+  return state.shiftQueue[state.index + offset] || null;
 }
 
 function isTypingInInput() {
@@ -306,6 +465,13 @@ function applySettings() {
   els.settingReducedMotion.checked = state.settings.reducedMotion;
   els.settingDarkDesk.checked = state.settings.darkDesk;
   els.settingSoundEffects.checked = state.settings.soundEffects;
+  els.settingAmbientAudio.checked = state.settings.ambientAudio;
+
+  if (state.settings.ambientAudio) {
+    startAmbientAudio();
+  } else {
+    stopAmbientAudio();
+  }
 }
 
 function initAudio() {
@@ -335,6 +501,71 @@ function playTone(freq, duration = 0.12, type = "sine", volume = 0.08) {
   } catch {
     /* audio unavailable */
   }
+}
+
+function startAmbientAudio() {
+  if (!state.settings.ambientAudio) return;
+
+  try {
+    initAudio();
+    stopAmbientAudio();
+
+    const bufferSize = 2 * audioCtx.sampleRate;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i += 1) {
+      output[i] = (Math.random() * 2 - 1) * 0.35;
+    }
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 180;
+
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 52;
+
+    const oscGain = audioCtx.createGain();
+    oscGain.gain.value = 0.018;
+
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0.012;
+
+    const master = audioCtx.createGain();
+    master.gain.value = 0.06;
+
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(master);
+    osc.connect(oscGain);
+    oscGain.connect(master);
+    master.connect(audioCtx.destination);
+
+    noise.start();
+    osc.start();
+
+    ambientNodes = { noise, osc, master };
+  } catch {
+    /* audio unavailable */
+  }
+}
+
+function stopAmbientAudio() {
+  if (!ambientNodes) return;
+
+  try {
+    ambientNodes.noise.stop();
+    ambientNodes.osc.stop();
+    ambientNodes.master.disconnect();
+  } catch {
+    /* already stopped */
+  }
+
+  ambientNodes = null;
 }
 
 function playSound(name) {
@@ -367,8 +598,186 @@ function playSound(name) {
   if (sounds[name]) sounds[name]();
 }
 
+function computeScore() {
+  return Math.max(0, state.stamps * 12 + state.morale - state.chaos + Math.floor(state.forms / 2));
+}
+
+function computeVerdict() {
+  if (state.chaos >= 85) return "The city survived, but only out of spite.";
+  if (state.morale >= 80 && state.chaos <= 45) return "A triumph of laminated calm.";
+  if (state.forms >= 75) return "Paperwork prevailed. Justice took a number.";
+  if (state.stamps >= 10) return "Stamp output heroic. Bureau morale cautiously optimistic.";
+  if (state.morale < 35) return "Morale filed for early retirement.";
+  return "Shift closed with administratively acceptable ambiguity.";
+}
+
+function awardBadges() {
+  const earned = new Set(state.badges);
+
+  if (state.stamps >= 1) earned.add("First stamp");
+  if (state.coffee >= 3) earned.add("Caffeine liaison");
+  if (state.chaos >= 80) earned.add("Chaos enjoyer");
+  if (state.morale >= 75) earned.add("Morale gardener");
+  if (state.forms >= 70) earned.add("Form archivist");
+  if (state.stamps >= state.shiftQueue.length) earned.add("Full queue clerk");
+
+  state.badges = [...earned];
+}
+
+function setShiftControlsEnabled(enabled) {
+  els.actionButtons.forEach((button) => {
+    button.disabled = !enabled;
+  });
+  els.scanButton.disabled = !enabled;
+  els.coffeeButton.disabled = !enabled;
+  els.hotlineButton.disabled = !enabled;
+}
+
+function updateDailyUI() {
+  const isDaily = state.shiftMode === "daily";
+  els.dailyDeskButton.classList.toggle("is-active", isDaily);
+  els.dailyLabel.hidden = !isDaily;
+  if (isDaily) {
+    els.dailyLabel.textContent = `Daily Challenge — ${dailyDateLabel()}`;
+  }
+}
+
+function saveShiftState() {
+  if (state.shiftEnded) return;
+
+  try {
+    const payload = {
+      savedAt: Date.now(),
+      index: state.index,
+      chaos: state.chaos,
+      morale: state.morale,
+      forms: state.forms,
+      coffee: state.coffee,
+      stamps: state.stamps,
+      history: state.history,
+      badges: state.badges,
+      shiftLog: state.shiftLog,
+      shiftQueue: state.shiftQueue,
+      shiftMode: state.shiftMode,
+      certificateText: state.certificateText,
+      shiftStart: state.shiftStart.toISOString()
+    };
+    localStorage.setItem(SHIFT_STATE_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function loadShiftState() {
+  try {
+    const raw = localStorage.getItem(SHIFT_STATE_KEY);
+    if (!raw) return null;
+
+    const saved = JSON.parse(raw);
+    if (!saved.savedAt || Date.now() - saved.savedAt > SHIFT_MAX_AGE_MS) {
+      clearShiftState();
+      return null;
+    }
+
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function clearShiftState() {
+  try {
+    localStorage.removeItem(SHIFT_STATE_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function restoreShiftState(saved) {
+  state.index = saved.index;
+  state.chaos = saved.chaos;
+  state.morale = saved.morale;
+  state.forms = saved.forms;
+  state.coffee = saved.coffee || 0;
+  state.stamps = saved.stamps;
+  state.history = saved.history || [];
+  state.badges = saved.badges || [];
+  state.shiftLog = saved.shiftLog || [];
+  state.shiftQueue = saved.shiftQueue || buildShiftQueue(saved.shiftMode || "normal");
+  state.shiftMode = saved.shiftMode || "normal";
+  state.certificateText = saved.certificateText || "";
+  state.shiftStart = saved.shiftStart ? new Date(saved.shiftStart) : new Date();
+  state.shiftEnded = state.index >= state.shiftQueue.length;
+  state.verdict = state.shiftEnded ? computeVerdict() : "";
+
+  updateDailyUI();
+  setShiftControlsEnabled(!state.shiftEnded);
+  renderStats();
+  renderCase();
+  restoreActivityLog();
+  if (state.shiftEnded) {
+    showShiftEnd();
+  } else {
+    els.shiftEndPanel.hidden = true;
+  }
+}
+
+function restoreActivityLog() {
+  els.log.innerHTML = "";
+  const recent = [...state.history].slice(-4).reverse();
+  recent.forEach((entry) => {
+    const li = document.createElement("li");
+    li.textContent = entry;
+    els.log.appendChild(li);
+  });
+  if (recent.length === 0) {
+    addLog("Desk reopened. Suspicion level: administratively acceptable.");
+  }
+}
+
+function startShift(mode = "normal") {
+  state.index = 0;
+  state.chaos = 42;
+  state.morale = 61;
+  state.forms = 18;
+  state.coffee = 0;
+  state.stamps = 0;
+  state.shiftLog = [];
+  state.history = [];
+  state.badges = [];
+  state.shiftQueue = buildShiftQueue(mode);
+  state.shiftMode = mode;
+  state.shiftEnded = false;
+  state.verdict = "";
+  state.certificateText = "";
+  state.shiftStart = new Date();
+
+  clearShiftState();
+  updateDailyUI();
+  setShiftControlsEnabled(true);
+  els.shiftEndPanel.hidden = true;
+  els.log.innerHTML = "";
+  renderStats();
+  renderCase();
+  addLog(mode === "daily" ? "Daily desk opened. Fate has been seeded." : "Desk opened. Suspicion level: administratively acceptable.");
+  els.ticker.textContent = "Awaiting paperwork weather.";
+  renderCertificate("Pending Stamp", "No nonsense has been certified yet.", "Choose a decision and the bureau will manufacture confidence.");
+}
+
 function renderCase() {
   const item = currentCase();
+
+  if (!item) {
+    els.caseTitle.textContent = "Shift queue empty";
+    els.caseSummary.textContent = "All cases filed. Review your certificate and share the verdict.";
+    els.caseCitizen.textContent = "-";
+    els.caseEvidence.textContent = "-";
+    els.riskFill.style.width = "0%";
+    els.riskLabel.textContent = "-";
+    renderQueue();
+    return;
+  }
+
   els.caseNumber.textContent = `CASE ${String(state.index + 1).padStart(4, "0")}`;
   els.caseTitle.textContent = item.title;
   els.caseSummary.textContent = item.summary;
@@ -406,20 +815,30 @@ function renderQueue() {
   els.queue.innerHTML = "";
 
   for (let i = 1; i <= 4; i += 1) {
-    const item = cases[nextCaseIndex(i)];
+    const item = queueCaseAt(i);
     const card = document.createElement("article");
     card.className = "queue-card";
     card.dataset.tone = tones[(state.index + i) % tones.length];
-    card.innerHTML = `
-      <strong>${item.title}</strong>
-      <span>${item.citizen} | ${riskName(item.risk)}</span>
-    `;
+
+    if (!item) {
+      card.innerHTML = `<strong>Queue clear</strong><span>Awaiting next shift</span>`;
+    } else {
+      card.innerHTML = `
+        <strong>${item.title}</strong>
+        <span>${item.citizen} | ${riskName(item.risk)}</span>
+      `;
+    }
+
     els.queue.appendChild(card);
   }
 }
 
 function decide(action) {
+  if (state.shiftEnded) return;
+
   const item = currentCase();
+  if (!item) return;
+
   const tone = actionTone[action];
   state.chaos = clamp(state.chaos + tone.chaos + randomInt(-3, 3), 0, 99);
   state.morale = clamp(state.morale + tone.morale + randomInt(-2, 4), 0, 99);
@@ -433,6 +852,8 @@ function decide(action) {
     `Bureau reading: chaos ${state.chaos}, morale ${state.morale}, forms ${state.forms}.`
   ].join("\n");
 
+  const logLine = `${tone.label} case ${String(state.index + 1).padStart(4, "0")}: ${shorten(item.title, 42)}`;
+
   state.shiftLog.push({
     type: "decision",
     action: tone.label,
@@ -440,18 +861,219 @@ function decide(action) {
     caseNum: state.index + 1,
     time: new Date()
   });
+  state.history.push(logLine);
 
   renderCertificate(tone.label, item.title, result);
-  addLog(`${tone.label} case ${String(state.index + 1).padStart(4, "0")}: ${shorten(item.title, 42)}`);
+  addLog(logLine);
   els.ticker.textContent = tickerFor(action, item.title);
   pulseStamp();
   spawnPapers(action);
   playSound(action);
   playSound("stamp");
 
-  state.index = nextCaseIndex(1);
+  awardBadges();
+  state.index += 1;
   renderStats();
+
+  if (state.index >= state.shiftQueue.length) {
+    endShift();
+  } else {
+    saveShiftState();
+    renderCase();
+  }
+}
+
+function endShift() {
+  state.shiftEnded = true;
+  state.verdict = computeVerdict();
+  awardBadges();
+  clearShiftState();
+  setShiftControlsEnabled(false);
+  showShiftEnd();
+  saveDailyBest();
+  submitLeaderboardScore();
+  renderLeaderboard();
+  addLog(`Shift complete: ${state.verdict}`);
+  els.ticker.textContent = `Shift closed — ${state.verdict}`;
+}
+
+function showShiftEnd() {
+  els.shiftEndPanel.hidden = false;
+  els.shiftVerdict.textContent = `${state.verdict} Rank: ${rankName()}. Stamps: ${state.stamps}. Score: ${computeScore()}.`;
   renderCase();
+}
+
+function saveDailyBest() {
+  if (state.shiftMode !== "daily") return;
+
+  const key = todayKey();
+  const score = computeScore();
+
+  try {
+    const raw = localStorage.getItem(DAILY_BEST_KEY);
+    const bests = raw ? JSON.parse(raw) : {};
+    if (!bests[key] || score > bests[key].score) {
+      bests[key] = {
+        score,
+        rank: rankName(),
+        stamps: state.stamps,
+        verdict: state.verdict,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(DAILY_BEST_KEY, JSON.stringify(bests));
+      addLog(`New daily best: ${score} points.`);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function shareText() {
+  const badgeLine = state.badges.length ? `Badges: ${state.badges.join(", ")}.` : "";
+  return [
+    "Bureau of Tiny Emergencies",
+    `Rank: ${rankName()}`,
+    `Stamps: ${state.stamps}`,
+    `Verdict: ${state.verdict || computeVerdict()}`,
+    `Score: ${computeScore()}`,
+    badgeLine
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function shareShift() {
+  const text = shareText();
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "Bureau of Tiny Emergencies — Shift Report",
+        text
+      });
+      addLog("Shift shared via device share sheet.");
+      playSound("click");
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
+  }
+
+  await copyText(text, "Shift score copied to clipboard.");
+  playSound("click");
+}
+
+function getLocalLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LOCAL_LEADERBOARD_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalLeaderboardEntry(entry) {
+  try {
+    const list = getLocalLeaderboard();
+    list.push(entry);
+    list.sort((a, b) => b.score - a.score);
+    localStorage.setItem(LOCAL_LEADERBOARD_KEY, JSON.stringify(list.slice(0, 20)));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function isSupabaseEnabled() {
+  const config = window.BUREAU_CONFIG || {};
+  return Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY);
+}
+
+async function submitLeaderboardScore() {
+  const entry = {
+    player_name: "Anonymous Clerk",
+    rank_title: rankName(),
+    stamps: state.stamps,
+    chaos: state.chaos,
+    morale: state.morale,
+    forms: state.forms,
+    verdict: state.verdict,
+    mode: state.shiftMode,
+    score: computeScore(),
+    created_at: new Date().toISOString()
+  };
+
+  saveLocalLeaderboardEntry(entry);
+
+  if (!isSupabaseEnabled()) return;
+
+  const config = window.BUREAU_CONFIG;
+
+  try {
+    const response = await fetch(`${config.SUPABASE_URL}/rest/v1/leaderboard`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: config.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${config.SUPABASE_ANON_KEY}`,
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify(entry)
+    });
+
+    if (!response.ok) throw new Error("Leaderboard POST failed");
+    addLog("Score filed with the Hall of clerks (remote).");
+  } catch {
+    addLog("Remote leaderboard unavailable. Score saved locally.");
+  }
+}
+
+async function fetchRemoteLeaderboard() {
+  if (!isSupabaseEnabled()) return null;
+
+  const config = window.BUREAU_CONFIG;
+
+  try {
+    const response = await fetch(
+      `${config.SUPABASE_URL}/rest/v1/leaderboard?select=player_name,rank_title,stamps,score,verdict,mode&order=score.desc,created_at.desc&limit=5`,
+      {
+        headers: {
+          apikey: config.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${config.SUPABASE_ANON_KEY}`
+        }
+      }
+    );
+
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function renderLeaderboard() {
+  const remote = await fetchRemoteLeaderboard();
+  const entries = remote && remote.length ? remote : getLocalLeaderboard().slice(0, 5);
+
+  els.leaderboardList.innerHTML = "";
+
+  if (!entries.length) {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="clerk-name">No scores yet</span><span class="clerk-meta">Complete a shift to appear here</span>`;
+    els.leaderboardList.appendChild(li);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span>
+        <span class="clerk-name">${entry.player_name || "Anonymous Clerk"}</span>
+        <span class="clerk-meta">${entry.rank_title} · ${entry.stamps} stamps · ${entry.mode || "normal"}</span>
+      </span>
+      <span class="clerk-score">${entry.score}</span>
+    `;
+    els.leaderboardList.appendChild(li);
+  });
 }
 
 function tickerFor(action, title) {
@@ -475,6 +1097,7 @@ function addLog(message) {
   const li = document.createElement("li");
   li.textContent = message;
   els.log.prepend(li);
+  state.history.push(message);
 
   while (els.log.children.length > 4) {
     els.log.removeChild(els.log.lastElementChild);
@@ -524,7 +1147,11 @@ function spawnPapers(action) {
 }
 
 function scanCase() {
+  if (state.shiftEnded) return;
+
   const item = currentCase();
+  if (!item) return;
+
   const clue = scanClues[randomInt(0, scanClues.length - 1)];
   state.chaos = clamp(state.chaos + randomInt(-2, 3), 0, 99);
   state.forms = clamp(state.forms + randomInt(1, 4), 0, 99);
@@ -543,10 +1170,14 @@ function scanCase() {
 }
 
 function coffeeBreak() {
+  if (state.shiftEnded) return;
+
   state.morale = clamp(state.morale + randomInt(4, 9), 0, 99);
   state.chaos = clamp(state.chaos + randomInt(-4, 2), 0, 99);
+  state.coffee += 1;
 
   state.shiftLog.push({ type: "coffee", time: new Date() });
+  awardBadges();
 
   const messages = [
     "Coffee break accepted. Morale steeping nicely.",
@@ -562,6 +1193,8 @@ function coffeeBreak() {
 }
 
 function callHotline() {
+  if (state.shiftEnded) return;
+
   const advice = hotlineAdvice[randomInt(0, hotlineAdvice.length - 1)];
   state.morale = clamp(state.morale + randomInt(-1, 5), 0, 99);
   state.forms = clamp(state.forms + randomInt(0, 3), 0, 99);
@@ -575,6 +1208,8 @@ function callHotline() {
 }
 
 function panic() {
+  if (state.shiftEnded) return;
+
   state.chaos = clamp(state.chaos + randomInt(7, 14), 0, 99);
   state.morale = clamp(state.morale + randomInt(-6, 5), 0, 99);
   state.forms = clamp(state.forms + randomInt(2, 11), 0, 99);
@@ -637,6 +1272,8 @@ function buildShiftMarkdown() {
     `**Date:** ${now.toLocaleDateString()}`,
     `**Shift duration:** ~${duration} minute${duration === 1 ? "" : "s"}`,
     `**Final rank:** ${rankName()}`,
+    `**Verdict:** ${state.verdict || computeVerdict()}`,
+    `**Score:** ${computeScore()}`,
     "",
     "## Stats",
     "",
@@ -645,6 +1282,7 @@ function buildShiftMarkdown() {
     `| Chaos | ${state.chaos} |`,
     `| Morale | ${state.morale} |`,
     `| Forms | ${state.forms} |`,
+    `| Coffee breaks | ${state.coffee} |`,
     `| Stamps issued | ${state.stamps} |`,
     "",
     "## Decisions",
@@ -657,6 +1295,10 @@ function buildShiftMarkdown() {
     decisions.forEach((entry, i) => {
       lines.push(`${i + 1}. **${entry.action}** — ${entry.title} (Case ${String(entry.caseNum).padStart(4, "0")})`);
     });
+  }
+
+  if (state.badges.length) {
+    lines.push("", "## Badges", "", state.badges.map((b) => `- ${b}`).join("\n"));
   }
 
   const utilities = state.shiftLog.filter((e) => e.type !== "decision");
@@ -705,16 +1347,23 @@ function closeAllOverlays() {
   closeDrawer();
   closeModal(els.helpModal);
   closeModal(els.tutorialModal);
+  closeModal(els.resumeModal);
 }
 
 function showTutorialIfNeeded() {
+  if (!pendingInit) return;
+
   try {
     if (!localStorage.getItem(TUTORIAL_KEY)) {
       openModal(els.tutorialModal);
+      return;
     }
   } catch {
     openModal(els.tutorialModal);
+    return;
   }
+
+  finalizeInit();
 }
 
 function dismissTutorial() {
@@ -724,6 +1373,118 @@ function dismissTutorial() {
     /* storage unavailable */
   }
   closeModal(els.tutorialModal);
+  finalizeInit();
+}
+
+function offerResumeShift() {
+  const saved = loadShiftState();
+  if (!saved) {
+    pendingInit = true;
+    startShift("normal");
+    showTutorialIfNeeded();
+    return;
+  }
+
+  const savedDate = new Date(saved.savedAt).toLocaleString();
+  els.resumeSummary.textContent = `Case ${saved.index + 1} of ${saved.shiftQueue.length}, ${saved.stamps} stamps, saved ${savedDate}.`;
+  openModal(els.resumeModal);
+}
+
+function resumeSavedShift() {
+  const saved = loadShiftState();
+  closeModal(els.resumeModal);
+  pendingInit = true;
+
+  if (saved) {
+    restoreShiftState(saved);
+  } else {
+    startShift("normal");
+  }
+
+  showTutorialIfNeeded();
+}
+
+function discardSavedShift() {
+  clearShiftState();
+  closeModal(els.resumeModal);
+  pendingInit = true;
+  startShift("normal");
+  showTutorialIfNeeded();
+}
+
+function finalizeInit() {
+  pendingInit = false;
+  renderLeaderboard();
+}
+
+function initSwipeControls() {
+  if (!els.casePanel) return;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  const threshold = 56;
+
+  els.casePanel.addEventListener(
+    "touchstart",
+    (event) => {
+      if (state.shiftEnded || event.touches.length !== 1) return;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+      tracking = true;
+      els.casePanel.classList.add("is-swiping");
+    },
+    { passive: true }
+  );
+
+  els.casePanel.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!tracking) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (Math.abs(dy) > Math.abs(dx)) return;
+
+      els.casePanel.classList.remove("swipe-approve", "swipe-deny");
+      if (dx > 20) els.casePanel.classList.add("swipe-approve");
+      if (dx < -20) els.casePanel.classList.add("swipe-deny");
+    },
+    { passive: true }
+  );
+
+  const endSwipe = (event) => {
+    if (!tracking) return;
+    tracking = false;
+
+    const point = event.changedTouches ? event.changedTouches[0] : null;
+    if (!point) return;
+
+    const dx = point.clientX - startX;
+    const dy = point.clientY - startY;
+
+    els.casePanel.classList.remove("is-swiping", "swipe-approve", "swipe-deny");
+
+    if (Math.abs(dx) < threshold || Math.abs(dy) > Math.abs(dx)) return;
+
+    if (dx > 0) {
+      decide("approve");
+    } else {
+      decide("deny");
+    }
+  };
+
+  els.casePanel.addEventListener("touchend", endSwipe, { passive: true });
+  els.casePanel.addEventListener("touchcancel", endSwipe, { passive: true });
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      /* offline support unavailable */
+    });
+  });
 }
 
 function handleKeyboard(event) {
@@ -736,7 +1497,7 @@ function handleKeyboard(event) {
     return;
   }
 
-  if (!els.settingsDrawer.hidden || !els.helpModal.hidden) {
+  if (!els.settingsDrawer.hidden || !els.helpModal.hidden || !els.resumeModal.hidden) {
     if (key === "?") {
       event.preventDefault();
       closeDrawer();
@@ -1008,6 +1769,15 @@ els.scanButton.addEventListener("click", scanCase);
 els.coffeeButton.addEventListener("click", coffeeBreak);
 els.hotlineButton.addEventListener("click", callHotline);
 els.exportShiftButton.addEventListener("click", exportShift);
+els.shareShiftButton.addEventListener("click", shareShift);
+els.newShiftButton.addEventListener("click", () => startShift(state.shiftMode));
+els.dailyDeskButton.addEventListener("click", () => {
+  if (!state.shiftEnded && state.stamps > 0) {
+    const proceed = window.confirm("Start today's daily desk? Current shift progress will be lost.");
+    if (!proceed) return;
+  }
+  startShift("daily");
+});
 
 els.settingsButton.addEventListener("click", openDrawer);
 els.settingsDrawer.querySelectorAll("[data-close-drawer]").forEach((el) => {
@@ -1033,8 +1803,16 @@ els.settingSoundEffects.addEventListener("change", (e) => {
   if (e.target.checked) playSound("click");
 });
 
+els.settingAmbientAudio.addEventListener("change", (e) => {
+  state.settings.ambientAudio = e.target.checked;
+  saveSettings();
+  applySettings();
+});
+
 els.helpButton.addEventListener("click", () => openModal(els.helpModal));
 els.tutorialDismiss.addEventListener("click", dismissTutorial);
+els.resumeShiftButton.addEventListener("click", resumeSavedShift);
+els.discardShiftButton.addEventListener("click", discardSavedShift);
 
 document.querySelectorAll("[data-close-modal]").forEach((el) => {
   el.addEventListener("click", () => {
@@ -1051,11 +1829,10 @@ document.addEventListener("keydown", handleKeyboard);
 window.addEventListener("resize", resizeCanvas);
 
 /* Init */
+registerServiceWorker();
+initSwipeControls();
 loadSettings();
 applySettings();
-renderStats();
-renderCase();
-addLog("Desk opened. Suspicion level: administratively acceptable.");
 resizeCanvas();
 requestAnimationFrame(drawCity);
-showTutorialIfNeeded();
+offerResumeShift();

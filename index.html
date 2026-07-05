@@ -44,6 +44,13 @@
           </div>
         </div>
 
+        <div class="mode-strip" aria-label="Shift modes">
+          <button id="dailyDeskButton" class="mode-button" type="button" title="Today's seeded case order">
+            Daily desk
+          </button>
+          <span id="dailyLabel" class="daily-label" hidden>Daily Challenge</span>
+        </div>
+
         <div class="topbar-actions">
           <button
             id="helpButton"
@@ -70,11 +77,17 @@
       </header>
 
       <main class="workspace" id="mainContent">
-        <section class="desk-panel case-panel" aria-labelledby="caseTitle">
+        <section class="desk-panel case-panel" id="casePanel" aria-labelledby="caseTitle">
           <div class="panel-header">
             <span class="eyebrow">Open file</span>
             <span id="caseNumber" class="case-number">CASE 0001</span>
           </div>
+
+          <p id="swipeHint" class="swipe-hint" aria-hidden="true">
+            <span class="swipe-arrow swipe-left" aria-hidden="true">←</span>
+            Swipe to decide
+            <span class="swipe-arrow swipe-right" aria-hidden="true">→</span>
+          </p>
 
           <div class="paper-stack" aria-hidden="true">
             <span></span>
@@ -228,6 +241,22 @@
             Export shift summary
           </button>
 
+          <button id="shareShiftButton" class="export-button share-button" type="button">
+            <span class="button-icon share-icon" aria-hidden="true"></span>
+            Share shift
+          </button>
+
+          <div id="shiftEndPanel" class="shift-end-panel" hidden>
+            <h3>Shift complete</h3>
+            <p id="shiftVerdict" class="shift-verdict"></p>
+            <button id="newShiftButton" class="modal-button" type="button">Start new shift</button>
+          </div>
+
+          <section class="hall-of-clerks" aria-labelledby="hallTitle">
+            <h3 id="hallTitle">Hall of clerks</h3>
+            <ol id="leaderboardList" class="leaderboard-list"></ol>
+          </section>
+
           <div class="mini-log" aria-label="Recent bureau activity">
             <h3>Recent activity</h3>
             <ul id="activityLog"></ul>
@@ -286,6 +315,14 @@
             </span>
             <input id="settingSoundEffects" type="checkbox" />
           </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Ambient desk hum</strong>
+              <small>Low looping office atmosphere</small>
+            </span>
+            <input id="settingAmbientAudio" type="checkbox" />
+          </label>
         </div>
       </div>
     </aside>
@@ -317,6 +354,28 @@
       </div>
     </div>
 
+    <!-- Resume shift modal -->
+    <div
+      id="resumeModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="resumeTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel">
+        <h2 id="resumeTitle">Resume interrupted shift?</h2>
+        <p id="resumeSummary">A desk session was saved less than 24 hours ago.</p>
+        <div class="modal-actions">
+          <button id="resumeShiftButton" class="modal-button" type="button">Resume shift</button>
+          <button id="discardShiftButton" class="modal-button modal-button-secondary" type="button">
+            Start fresh
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Help modal -->
     <div
       id="helpModal"
@@ -345,6 +404,7 @@
       </div>
     </div>
 
+    <script src="config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
