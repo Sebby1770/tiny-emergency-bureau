@@ -1,0 +1,24 @@
+{
+  "name": "Bureau of Tiny Emergencies",
+  "short_name": "Tiny Bureau",
+  "description": "A funny interactive tiny emergency triage desk. Approve, deny, or escalate absurd case files.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6ead6",
+  "theme_color": "#10141f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%23f8c94a' stroke='%23231f20' stroke-width='8'/%3E%3Crect x='40' y='40' width='50' height='50' fill='%2339b78f' stroke='%23231f20' stroke-width='6'/%3E%3Crect x='102' y='40' width='50' height='50' fill='%233f7ad6' stroke='%23231f20' stroke-width='6'/%3E%3Crect x='40' y='102' width='112' height='50' fill='%23f05f4b' stroke='%23231f20' stroke-width='6'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%23f8c94a' stroke='%23231f20' stroke-width='16'/%3E%3Crect x='96' y='96' width='140' height='140' fill='%2339b78f' stroke='%23231f20' stroke-width='16'/%3E%3Crect x='276' y='96' width='140' height='140' fill='%233f7ad6' stroke='%23231f20' stroke-width='16'/%3E%3Crect x='96' y='276' width='320' height='140' fill='%23f05f4b' stroke='%23231f20' stroke-width='16'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

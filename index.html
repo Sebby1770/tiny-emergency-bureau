@@ -3,14 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10141f" />
     <meta
       name="description"
       content="A funny interactive tiny emergency triage desk built with HTML, CSS, and JavaScript."
     />
     <title>Bureau of Tiny Emergencies</title>
+    <link rel="manifest" href="manifest.json" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#caseTitle">Skip to current case</a>
+
     <div class="app-shell">
       <header class="topbar" aria-label="Bureau status">
         <a class="brand" href="#caseTitle" aria-label="Bureau of Tiny Emergencies home">
@@ -39,9 +43,33 @@
             <strong id="formsValue">18</strong>
           </div>
         </div>
+
+        <div class="topbar-actions">
+          <button
+            id="helpButton"
+            class="icon-button"
+            type="button"
+            aria-label="Keyboard shortcuts"
+            aria-keyshortcuts="?"
+            title="Keyboard shortcuts (?)"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
+          <button
+            id="settingsButton"
+            class="icon-button"
+            type="button"
+            aria-label="Open settings"
+            aria-haspopup="dialog"
+            aria-controls="settingsDrawer"
+            title="Settings"
+          >
+            <span class="gear-icon" aria-hidden="true"></span>
+          </button>
+        </div>
       </header>
 
-      <main class="workspace">
+      <main class="workspace" id="mainContent">
         <section class="desk-panel case-panel" aria-labelledby="caseTitle">
           <div class="panel-header">
             <span class="eyebrow">Open file</span>
@@ -77,16 +105,67 @@
             </div>
           </dl>
 
+          <div class="desk-tools" aria-label="Desk utilities">
+            <button
+              id="scanButton"
+              class="tool-button"
+              type="button"
+              aria-keyshortcuts="S"
+              title="Scan case file (S)"
+            >
+              <span class="button-icon scan-icon" aria-hidden="true"></span>
+              Scan
+            </button>
+            <button
+              id="coffeeButton"
+              class="tool-button"
+              type="button"
+              aria-keyshortcuts="C"
+              title="Coffee break (C)"
+            >
+              <span class="button-icon coffee-icon" aria-hidden="true"></span>
+              Coffee
+            </button>
+            <button
+              id="hotlineButton"
+              class="tool-button"
+              type="button"
+              aria-keyshortcuts="H"
+              title="Call hotline (H)"
+            >
+              <span class="button-icon hotline-icon" aria-hidden="true"></span>
+              Hotline
+            </button>
+          </div>
+
           <div class="action-grid" aria-label="Case actions">
-            <button class="action-button approve" data-action="approve" type="button">
+            <button
+              class="action-button approve"
+              data-action="approve"
+              type="button"
+              aria-keyshortcuts="A"
+              title="Approve case (A)"
+            >
               <span class="button-icon check-icon" aria-hidden="true"></span>
               Approve
             </button>
-            <button class="action-button deny" data-action="deny" type="button">
+            <button
+              class="action-button deny"
+              data-action="deny"
+              type="button"
+              aria-keyshortcuts="D"
+              title="Deny case (D)"
+            >
               <span class="button-icon x-icon" aria-hidden="true"></span>
               Deny
             </button>
-            <button class="action-button escalate" data-action="escalate" type="button">
+            <button
+              class="action-button escalate"
+              data-action="escalate"
+              type="button"
+              aria-keyshortcuts="E"
+              title="Escalate case (E)"
+            >
               <span class="button-icon arrow-icon" aria-hidden="true"></span>
               Escalate
             </button>
@@ -99,7 +178,13 @@
               <span class="eyebrow">Live jurisdiction</span>
               <h2 id="cityTitle">Mini Metro No. 7</h2>
             </div>
-            <button id="panicButton" class="panic-button" type="button">
+            <button
+              id="panicButton"
+              class="panic-button"
+              type="button"
+              aria-keyshortcuts="P"
+              title="Pull panic lever (P)"
+            >
               <span class="lever" aria-hidden="true"><span></span></span>
               Panic lever
             </button>
@@ -138,6 +223,11 @@
             </button>
           </div>
 
+          <button id="exportShiftButton" class="export-button" type="button">
+            <span class="button-icon export-icon" aria-hidden="true"></span>
+            Export shift summary
+          </button>
+
           <div class="mini-log" aria-label="Recent bureau activity">
             <h3>Recent activity</h3>
             <ul id="activityLog"></ul>
@@ -152,6 +242,107 @@
         </div>
         <div id="queueList" class="queue-list"></div>
       </section>
+    </div>
+
+    <!-- Settings drawer -->
+    <aside
+      id="settingsDrawer"
+      class="settings-drawer"
+      role="dialog"
+      aria-labelledby="settingsTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="drawer-backdrop" data-close-drawer></div>
+      <div class="drawer-panel">
+        <header class="drawer-header">
+          <h2 id="settingsTitle">Desk settings</h2>
+          <button class="icon-button drawer-close" type="button" aria-label="Close settings" data-close-drawer>
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+
+        <div class="settings-list">
+          <label class="setting-row">
+            <span>
+              <strong>Reduced motion</strong>
+              <small>Calm the stamp thumps and city wobble</small>
+            </span>
+            <input id="settingReducedMotion" type="checkbox" />
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Dark desk theme</strong>
+              <small>Late-shift paperwork ambiance</small>
+            </span>
+            <input id="settingDarkDesk" type="checkbox" />
+          </label>
+
+          <label class="setting-row">
+            <span>
+              <strong>Sound effects</strong>
+              <small>Web Audio beeps and bureau blips</small>
+            </span>
+            <input id="settingSoundEffects" type="checkbox" />
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Tutorial modal -->
+    <div
+      id="tutorialModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="tutorialTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop" data-close-modal="tutorial"></div>
+      <div class="modal-panel">
+        <h2 id="tutorialTitle">Welcome, Clerk Grade C</h2>
+        <p>
+          You are the first line of defense against tiny emergencies. Read each case, then
+          <strong>Approve</strong>, <strong>Deny</strong>, or <strong>Escalate</strong> as your conscience
+          (and the forms) demand.
+        </p>
+        <ul class="modal-list">
+          <li>Watch <strong>Chaos</strong>, <strong>Morale</strong>, and <strong>Forms</strong> shift with every stamp.</li>
+          <li>Use <strong>Scan</strong>, <strong>Coffee</strong>, and <strong>Hotline</strong> when the desk gets wobbly.</li>
+          <li>Pull the <strong>Panic lever</strong> only if you enjoy laminated urgency.</li>
+          <li>Press <strong>?</strong> anytime for keyboard shortcuts.</li>
+        </ul>
+        <button id="tutorialDismiss" class="modal-button" type="button">Begin my shift</button>
+      </div>
+    </div>
+
+    <!-- Help modal -->
+    <div
+      id="helpModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="helpTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop" data-close-modal="help"></div>
+      <div class="modal-panel">
+        <h2 id="helpTitle">Keyboard shortcuts</h2>
+        <dl class="shortcut-list">
+          <div><dt>A</dt><dd>Approve current case</dd></div>
+          <div><dt>D</dt><dd>Deny current case</dd></div>
+          <div><dt>E</dt><dd>Escalate current case</dd></div>
+          <div><dt>S</dt><dd>Scan case file</dd></div>
+          <div><dt>C</dt><dd>Coffee break</dd></div>
+          <div><dt>H</dt><dd>Call hotline</dd></div>
+          <div><dt>P</dt><dd>Pull panic lever</dd></div>
+          <div><dt>?</dt><dd>Open this help panel</dd></div>
+          <div><dt>Esc</dt><dd>Close modals and settings</dd></div>
+        </dl>
+        <p class="modal-note">Shortcuts are disabled while typing in form fields.</p>
+        <button class="modal-button" type="button" data-close-modal="help">Back to desk</button>
+      </div>
     </div>
 
     <script src="script.js"></script>
