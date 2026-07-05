@@ -7,7 +7,14 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 ## Features
 
 - **12 absurd case files** plus **2–3 procedural cases** per shift with unique outcomes
-- **Live city canvas** — buildings wobble with chaos, papers fly on every stamp
+- **Campaign mode — Season 1: The Paperwork Uprising** — 6-shift narrative with 3 acts, recurring characters, ratio-based interludes, and act-exclusive cases
+- **Decision ripples** — Past stamps tag the world; later cases gain dynamic summary modifiers and city pulse animations
+- **Red Phone crisis mode** — 15-second timers per case, auto-escalate on timeout, bonus stamps for fast correct calls
+- **Clerk's journal** — Optional official reasoning scored for bureaucratic eloquence (Silver Tongue badge at 80+ avg)
+- **Interactive district map** — Click five city districts for localized chaos reports
+- **Certificate PNG export** — Download stamped certificates as PNG (manual canvas, no libraries)
+- **Ghost clerk notes** — Leave notes for future clerks; rotating messages greet new shifts
+- **Live city canvas** — Buildings wobble with chaos, papers fly on every stamp
 - **Desk utilities** — Scan cases for clues, take coffee breaks, call the hotline
 - **Keyboard shortcuts** — Full desk control without touching the mouse
 - **Touch controls** — Swipe right to approve, left to deny (mobile)
@@ -38,11 +45,22 @@ Shortcuts are disabled while typing in form fields.
 
 On mobile, swipe **right** to approve and **left** to deny on the case panel.
 
+Click districts on the city canvas for localized chaos reports.
+
+## Shift modes
+
+| Mode | Description |
+|------|-------------|
+| **Quick shift** | Standard shuffled queue of base + procedural cases |
+| **Campaign** | Season 1 story across 6 shifts; progress saved in `bureau-campaign-v1` |
+| **Daily desk** | Today's seeded case order with local best-score tracking |
+| **Red Phone** | Overlay: 15s timer per case (toggle anytime) |
+
 ## Files
 
 - `index.html` — App structure, modals, settings drawer, accessibility markup
 - `styles.css` — Responsive illustrated interface, dark theme, focus styles
-- `script.js` — Cases, scoring, canvas animation, clipboard, keyboard shortcuts, settings
+- `script.js` — Cases, scoring, canvas animation, campaign, ripples, crisis timers, journal
 - `config.js` — Optional Supabase leaderboard configuration
 - `sw.js` — Service worker for offline static asset caching
 - `manifest.json` — PWA manifest for installable desk experience
@@ -74,6 +92,10 @@ Settings are saved to `localStorage` and restored on reload.
 
 Click **Daily desk** in the top bar to start a shift with today's seeded case order. The label shows the current date (e.g. "Daily Challenge — Jul 5"). Your best score for each day is stored locally.
 
+## Campaign
+
+Click **Campaign** to begin or resume Season 1. Complete 6 shifts across 3 acts. Between shifts, story interludes react to whether you've approved, denied, or escalated most often. Act 2 and Act 3 add exclusive cases involving the Printer, Sock Union, and Mayor's Hotline.
+
 ## Leaderboard (optional)
 
 To enable the remote **Hall of clerks** leaderboard, see `supabase/README.md` and fill in `config.js`:
@@ -89,10 +111,11 @@ Leave empty to use the local fallback only.
 
 ## Shift flow
 
-Each shift processes a queue of base cases plus procedurally generated emergencies. When the queue is complete:
+Each shift processes a queue of base cases plus procedurally generated emergencies (and campaign-exclusive cases in Campaign mode). When the queue is complete:
 
 1. A verdict and score are calculated
 2. Scores are saved locally (and to Supabase if configured)
-3. You can **Share shift**, **Export shift summary**, or **Start new shift**
+3. You can leave a **ghost note**, **Share shift**, **Export shift summary**, **Download certificate PNG**, or **Start new shift**
+4. In Campaign mode, continue through interludes until Season 1 concludes
 
 Progress is auto-saved after every decision so you can resume within 24 hours.

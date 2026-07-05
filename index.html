@@ -45,10 +45,30 @@
         </div>
 
         <div class="mode-strip" aria-label="Shift modes">
+          <button id="quickShiftButton" class="mode-button is-active" type="button" title="Standard shift queue">
+            Quick shift
+          </button>
+          <button id="campaignButton" class="mode-button" type="button" title="Season 1: The Paperwork Uprising">
+            Campaign
+          </button>
           <button id="dailyDeskButton" class="mode-button" type="button" title="Today's seeded case order">
             Daily desk
           </button>
+          <button id="redPhoneButton" class="mode-button mode-button-crisis" type="button" title="15-second crisis timers">
+            Red Phone
+          </button>
           <span id="dailyLabel" class="daily-label" hidden>Daily Challenge</span>
+          <span id="campaignLabel" class="daily-label campaign-label" hidden>Season 1</span>
+        </div>
+
+        <div id="campaignProgressWrap" class="campaign-progress-wrap" hidden>
+          <div class="campaign-progress-meta">
+            <span id="campaignActLabel">Act 1</span>
+            <span id="campaignProgressText">Shift 1 of 6</span>
+          </div>
+          <div class="campaign-progress-bar" aria-hidden="true">
+            <span id="campaignProgressFill"></span>
+          </div>
         </div>
 
         <div class="topbar-actions">
@@ -95,8 +115,21 @@
             <span></span>
           </div>
 
+          <div id="crisisTimerWrap" class="crisis-timer-wrap" hidden>
+            <div class="crisis-timer-meta">
+              <span class="crisis-label">Red Phone</span>
+              <span id="crisisTimerLabel">15s</span>
+            </div>
+            <div class="crisis-timer-bar" aria-hidden="true">
+              <span id="crisisTimerFill"></span>
+            </div>
+          </div>
+
+          <p id="ghostNotesBanner" class="ghost-notes-banner" hidden></p>
+
           <h1 id="caseTitle">Loading tiny emergency...</h1>
           <p id="caseSummary" class="case-summary"></p>
+          <p id="rippleModifier" class="ripple-modifier" hidden></p>
 
           <dl class="case-facts">
             <div>
@@ -151,6 +184,17 @@
             </button>
           </div>
 
+          <label class="journal-field" for="journalReasoning">
+            <span class="eyebrow">Official reasoning (optional)</span>
+            <textarea
+              id="journalReasoning"
+              rows="3"
+              placeholder="Pursuant to bureau protocol, I hereby note that..."
+              maxlength="500"
+            ></textarea>
+            <span id="journalScoreHint" class="journal-score-hint">Eloquence scored on stamp</span>
+          </label>
+
           <div class="action-grid" aria-label="Case actions">
             <button
               class="action-button approve"
@@ -204,7 +248,19 @@
           </div>
 
           <div class="canvas-wrap">
-            <canvas id="cityCanvas" width="960" height="560" aria-label="Animated city status"></canvas>
+            <canvas id="cityCanvas" width="960" height="560" aria-label="Animated city status — click districts for local reports"></canvas>
+            <div id="districtOverlay" class="district-overlay" aria-hidden="true">
+              <button type="button" class="district-zone" data-district="toner" title="Toner District" aria-label="Toner District"></button>
+              <button type="button" class="district-zone" data-district="sock" title="Sock Quarter" aria-label="Sock Quarter"></button>
+              <button type="button" class="district-zone" data-district="elevator" title="Elevator Heights" aria-label="Elevator Heights"></button>
+              <button type="button" class="district-zone" data-district="breakroom" title="Break Room" aria-label="Break Room"></button>
+              <button type="button" class="district-zone" data-district="scheduling" title="Scheduling Ward" aria-label="Scheduling Ward"></button>
+            </div>
+            <div id="districtPopup" class="district-popup" hidden role="status" aria-live="polite">
+              <strong id="districtPopupTitle">District report</strong>
+              <p id="districtPopupBody"></p>
+              <button id="districtPopupClose" class="district-popup-close" type="button" aria-label="Close district report">×</button>
+            </div>
             <div id="stampFlash" class="stamp-flash" aria-hidden="true">FILED</div>
           </div>
 
@@ -234,6 +290,10 @@
               <span class="button-icon copy-icon" aria-hidden="true"></span>
               Copy certificate
             </button>
+            <button id="downloadCertificateButton" class="copy-button download-button" type="button">
+              <span class="button-icon download-icon" aria-hidden="true"></span>
+              Download PNG
+            </button>
           </div>
 
           <button id="exportShiftButton" class="export-button" type="button">
@@ -249,7 +309,21 @@
           <div id="shiftEndPanel" class="shift-end-panel" hidden>
             <h3>Shift complete</h3>
             <p id="shiftVerdict" class="shift-verdict"></p>
-            <button id="newShiftButton" class="modal-button" type="button">Start new shift</button>
+            <label class="ghost-note-field" for="ghostNoteInput">
+              <span class="eyebrow">Note for the next clerk</span>
+              <textarea
+                id="ghostNoteInput"
+                rows="2"
+                placeholder="Leave a laminated warning for whoever inherits this desk..."
+                maxlength="200"
+              ></textarea>
+            </label>
+            <div class="shift-end-actions">
+              <button id="newShiftButton" class="modal-button" type="button">Start new shift</button>
+              <button id="campaignContinueButton" class="modal-button modal-button-secondary" type="button" hidden>
+                Continue campaign
+              </button>
+            </div>
           </div>
 
           <section class="hall-of-clerks" aria-labelledby="hallTitle">
@@ -349,6 +423,7 @@
           <li>Use <strong>Scan</strong>, <strong>Coffee</strong>, and <strong>Hotline</strong> when the desk gets wobbly.</li>
           <li>Pull the <strong>Panic lever</strong> only if you enjoy laminated urgency.</li>
           <li>Press <strong>?</strong> anytime for keyboard shortcuts.</li>
+          <li>Try <strong>Campaign</strong> for Season 1, <strong>Red Phone</strong> for crisis timers, and click city districts for local reports.</li>
         </ul>
         <button id="tutorialDismiss" class="modal-button" type="button">Begin my shift</button>
       </div>
@@ -376,6 +451,25 @@
       </div>
     </div>
 
+    <!-- Campaign interlude modal -->
+    <div
+      id="campaignInterludeModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="interludeTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel modal-panel-wide">
+        <p class="eyebrow" id="interludeAct">Between shifts</p>
+        <h2 id="interludeTitle">The Paperwork Uprising</h2>
+        <p id="interludeBody"></p>
+        <p id="interludeCharacter" class="interlude-character"></p>
+        <button id="interludeContinueButton" class="modal-button" type="button">Return to desk</button>
+      </div>
+    </div>
+
     <!-- Help modal -->
     <div
       id="helpModal"
@@ -398,6 +492,7 @@
           <div><dt>P</dt><dd>Pull panic lever</dd></div>
           <div><dt>?</dt><dd>Open this help panel</dd></div>
           <div><dt>Esc</dt><dd>Close modals and settings</dd></div>
+          <div><dt>Click</dt><dd>District zones on city map for local chaos reports</dd></div>
         </dl>
         <p class="modal-note">Shortcuts are disabled while typing in form fields.</p>
         <button class="modal-button" type="button" data-close-modal="help">Back to desk</button>

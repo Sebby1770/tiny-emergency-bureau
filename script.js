@@ -233,7 +233,12 @@ const TUTORIAL_KEY = "bte-tutorial-seen";
 const SHIFT_STATE_KEY = "bureau-shift-state";
 const DAILY_BEST_KEY = "bureau-daily-best";
 const LOCAL_LEADERBOARD_KEY = "bureau-local-leaderboard";
+const CAMPAIGN_KEY = "bureau-campaign-v1";
+const GHOST_NOTES_KEY = "bureau-ghost-notes";
 const SHIFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const RED_PHONE_TIMEOUT_MS = 15000;
+const RED_PHONE_FAST_MS = 8000;
+const CAMPAIGN_TOTAL_SHIFTS = 6;
 
 const scanClues = [
   "Forensic scan reveals the evidence was notarized by a rubber duck.",
@@ -245,6 +250,177 @@ const scanClues = [
   "Document watermark reads: 'property of whoever panics last.'",
   "Scan found a hidden appendix titled 'Dramatic Pause Addendum.'"
 ];
+
+const campaignCasesAct2 = [
+  {
+    title: "Printer demands a seat on council",
+    citizen: "Mel from Level 4 (reprising)",
+    risk: 74,
+    evidence: "Campaign flyer, toner-stained ballot, one smug beep",
+    summary:
+      "The self-aware printer now wants voting rights and a reserved parking space labeled 'OUTPUT ONLY.'",
+    approve:
+      "Approved civic participation. The printer immediately filed seventeen referendums.",
+    deny:
+      "Denied suffrage. The printer began printing dissent in Comic Sans.",
+    escalate:
+      "Escalated to Electoral IT. They asked if toner counts as a constituency.",
+    campaignOnly: true,
+    act: 2
+  },
+  {
+    title: "Sock Union stages a lint blockade",
+    citizen: "Laundry Annex (union chapter)",
+    risk: 68,
+    evidence: "Barricade of mismatched socks, chant: 'No fluff, no fold'",
+    summary:
+      "The Sock Union has sealed the Sock Quarter until all drawers install mood lighting.",
+    approve:
+      "Approved the blockade terms. Drawers now dim at sunset for emotional parity.",
+    deny:
+      "Denied the blockade. Right socks have mysteriously joined the protest.",
+    escalate:
+      "Escalated to Mayor's Hotline. The Mayor's sock collection went on record.",
+    campaignOnly: true,
+    act: 2
+  }
+];
+
+const campaignCasesAct3 = [
+  {
+    title: "Mayor's Hotline holds the city hostage",
+    citizen: "Mayor's Hotline",
+    risk: 88,
+    evidence: "Hold music, 400 voicemails, one brave hold button",
+    summary:
+      "The Mayor's Hotline will not release afternoon until every clerk admits they also hate Mondays.",
+    approve:
+      "Approved collective Monday hatred. The hold music switched to gentle jazz.",
+    deny:
+      "Denied the hostage terms. The Hotline transferred everyone to itself.",
+    escalate:
+      "Escalated to the Mayor. The Mayor was already on hold.",
+    campaignOnly: true,
+    act: 3
+  },
+  {
+    title: "The Paperwork Uprising reaches your desk",
+    citizen: "Form Cloud Command",
+    risk: 91,
+    evidence: "Stampede of triplicate forms, a manifesto written in margins",
+    summary:
+      "Every form in the city has unionized and is marching toward your stamp pad with demands.",
+    approve:
+      "Approved the uprising's terms. Forms now receive dental and a lunch break.",
+    deny:
+      "Denied the uprising. The forms began filing themselves incorrectly on purpose.",
+    escalate:
+      "Escalated to Senior Paperwork. Senior Paperwork sent more paperwork.",
+    campaignOnly: true,
+    act: 3
+  }
+];
+
+const rippleTriggers = {
+  "Printer achieves self-awareness": {
+    approve: "toner-shortage",
+    deny: "paper-jam-wave",
+    escalate: "philosophy-queue"
+  },
+  "Left socks form a union": {
+    approve: "sock-solidarity",
+    deny: "lint-unrest",
+    escalate: "wardrobe-crisis"
+  },
+  "Elevator stuck on dramatic pause": {
+    approve: "elevator-drama",
+    deny: "vertical-sighing",
+    escalate: "stage-manager-floor6"
+  },
+  "Coffee mug demands title change": {
+    approve: "beverage-coup",
+    deny: "spilled-dignity",
+    escalate: "spoon-treasurer"
+  },
+  "Calendar hides all Mondays": {
+    approve: "pretuesday-era",
+    deny: "monday-returned",
+    escalate: "temporal-meeting"
+  },
+  "Printer demands a seat on council": {
+    approve: "toner-shortage",
+    deny: "paper-jam-wave",
+    escalate: "philosophy-queue"
+  },
+  "Sock Union stages a lint blockade": {
+    approve: "sock-solidarity",
+    deny: "lint-unrest",
+    escalate: "wardrobe-crisis"
+  },
+  "Mayor's Hotline holds the city hostage": {
+    approve: "hotline-jazz",
+    deny: "hold-loop",
+    escalate: "mayor-on-hold"
+  },
+  "The Paperwork Uprising reaches your desk": {
+    approve: "form-union",
+    deny: "malicious-filing",
+    escalate: "senior-paperwork"
+  }
+};
+
+const rippleModifiers = {
+  "toner-shortage": "Ripple effect: Toner District reports critical grayscale shortages.",
+  "paper-jam-wave": "Ripple effect: Urgent documents are jamming in symbolic protest.",
+  "philosophy-queue": "Ripple effect: Philosophy IT has a 400-ticket backlog of existential queries.",
+  "sock-solidarity": "Ripple effect: Sock Quarter morale is suspiciously fluffy.",
+  "lint-unrest": "Ripple effect: Lint levels in Sock Quarter exceed municipal guidelines.",
+  "wardrobe-crisis": "Ripple effect: Sandal-related incidents up 300% near Elevator Heights.",
+  "elevator-drama": "Ripple effect: Elevator Heights riders now expect monologues.",
+  "vertical-sighing": "Ripple effect: Tower B elevators whisper 'interesting' at commuters.",
+  "stage-manager-floor6": "Ripple effect: Floor 6 has been cast in a supporting role.",
+  "beverage-coup": "Ripple effect: Break Room tea has filed a leadership grievance.",
+  "spilled-dignity": "Ripple effect: Ceramic morale in Break Room remains damp.",
+  "spoon-treasurer": "Ripple effect: Break Room finances are spoon-managed.",
+  "pretuesday-era": "Ripple effect: Scheduling Ward calendars list only pre-Tuesdays.",
+  "monday-returned": "Ripple effect: Monday has returned to Scheduling Ward wearing sunglasses.",
+  "temporal-meeting": "Ripple effect: A meeting was scheduled last Thursday. Attendance: confusing.",
+  "hotline-jazz": "Ripple effect: Mayor's Hotline hold music upgraded to gentle jazz.",
+  "hold-loop": "Ripple effect: Mayor's Hotline has placed the city on perpetual hold.",
+  "mayor-on-hold": "Ripple effect: The Mayor is still waiting. So is everyone else.",
+  "form-union": "Ripple effect: Forms citywide now demand lunch breaks and dental.",
+  "malicious-filing": "Ripple effect: Forms are filing themselves incorrectly on purpose.",
+  "senior-paperwork": "Ripple effect: Senior Paperwork responded with more paperwork."
+};
+
+const bureaucraticKeywords = [
+  "pursuant",
+  "hereby",
+  "notwithstanding",
+  "wherefore",
+  "aforesaid",
+  "heretofore",
+  "thereof",
+  "whereas",
+  "henceforth",
+  "inasmuch",
+  "forthwith",
+  "bureau",
+  "protocol",
+  "pursuant to",
+  "in accordance",
+  "administratively",
+  "laminated",
+  "triplicate"
+];
+
+const districtNames = {
+  toner: "Toner District",
+  sock: "Sock Quarter",
+  elevator: "Elevator Heights",
+  breakroom: "Break Room",
+  scheduling: "Scheduling Ward"
+};
 
 const hotlineAdvice = [
   "Hotline says: when in doubt, escalate until someone else owns the vibe.",
@@ -274,8 +450,16 @@ const state = {
   badges: [],
   shiftQueue: [],
   shiftMode: "normal",
+  redPhoneMode: false,
   shiftEnded: false,
   verdict: "",
+  ripples: [],
+  ripplePulses: [],
+  journalScores: [],
+  lastJournalScore: 0,
+  crisisTimerId: null,
+  crisisDeadline: 0,
+  crisisCaseIndex: -1,
   settings: {
     reducedMotion: false,
     darkDesk: false,
@@ -336,7 +520,35 @@ const els = {
   resumeShiftButton: document.querySelector("#resumeShiftButton"),
   discardShiftButton: document.querySelector("#discardShiftButton"),
   helpModal: document.querySelector("#helpModal"),
-  helpButton: document.querySelector("#helpButton")
+  helpButton: document.querySelector("#helpButton"),
+  quickShiftButton: document.querySelector("#quickShiftButton"),
+  campaignButton: document.querySelector("#campaignButton"),
+  campaignLabel: document.querySelector("#campaignLabel"),
+  campaignProgressWrap: document.querySelector("#campaignProgressWrap"),
+  campaignActLabel: document.querySelector("#campaignActLabel"),
+  campaignProgressText: document.querySelector("#campaignProgressText"),
+  campaignProgressFill: document.querySelector("#campaignProgressFill"),
+  redPhoneButton: document.querySelector("#redPhoneButton"),
+  crisisTimerWrap: document.querySelector("#crisisTimerWrap"),
+  crisisTimerFill: document.querySelector("#crisisTimerFill"),
+  crisisTimerLabel: document.querySelector("#crisisTimerLabel"),
+  rippleModifier: document.querySelector("#rippleModifier"),
+  journalReasoning: document.querySelector("#journalReasoning"),
+  ghostNotesBanner: document.querySelector("#ghostNotesBanner"),
+  districtZones: document.querySelectorAll(".district-zone"),
+  districtPopup: document.querySelector("#districtPopup"),
+  districtPopupTitle: document.querySelector("#districtPopupTitle"),
+  districtPopupBody: document.querySelector("#districtPopupBody"),
+  districtPopupClose: document.querySelector("#districtPopupClose"),
+  downloadCertificateButton: document.querySelector("#downloadCertificateButton"),
+  ghostNoteInput: document.querySelector("#ghostNoteInput"),
+  campaignContinueButton: document.querySelector("#campaignContinueButton"),
+  campaignInterludeModal: document.querySelector("#campaignInterludeModal"),
+  interludeAct: document.querySelector("#interludeAct"),
+  interludeTitle: document.querySelector("#interludeTitle"),
+  interludeBody: document.querySelector("#interludeBody"),
+  interludeCharacter: document.querySelector("#interludeCharacter"),
+  interludeContinueButton: document.querySelector("#interludeContinueButton")
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -404,7 +616,47 @@ function seededShuffle(items, seed) {
   return list;
 }
 
-function buildShiftQueue(mode = "normal") {
+function loadCampaignState() {
+  try {
+    const raw = localStorage.getItem(CAMPAIGN_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* keep defaults */
+  }
+  return {
+    shiftsCompleted: 0,
+    decisions: { approve: 0, deny: 0, escalate: 0 },
+    completed: false,
+    ripples: []
+  };
+}
+
+function saveCampaignState(campaign) {
+  try {
+    localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(campaign));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function getCampaignAct(shiftIndex) {
+  if (shiftIndex < 2) return 1;
+  if (shiftIndex < 4) return 2;
+  return 3;
+}
+
+function resetCampaign() {
+  const fresh = {
+    shiftsCompleted: 0,
+    decisions: { approve: 0, deny: 0, escalate: 0 },
+    completed: false,
+    ripples: []
+  };
+  saveCampaignState(fresh);
+  return fresh;
+}
+
+function buildShiftQueue(mode = "normal", campaignShift = 0) {
   const dateSeed = hashString(todayKey());
   const baseSeed = mode === "daily" ? dateSeed : hashString(`${Date.now()}-${Math.random()}`);
   const proceduralCount = 2 + Math.floor(seededRandom(baseSeed + 99) * 2);
@@ -415,7 +667,12 @@ function buildShiftQueue(mode = "normal") {
 
   let queue = [...cases, ...procedural];
 
-  if (mode === "daily") {
+  if (mode === "campaign") {
+    const act = getCampaignAct(campaignShift);
+    if (act >= 2) queue = [...queue, ...campaignCasesAct2];
+    if (act >= 3) queue = [...queue, ...campaignCasesAct3];
+    queue = seededShuffle(queue, hashString(`campaign-${campaignShift}-${baseSeed}`));
+  } else if (mode === "daily") {
     queue = seededShuffle(queue, dateSeed);
   } else {
     queue = seededShuffle(queue, baseSeed + 42);
@@ -621,7 +878,461 @@ function awardBadges() {
   if (state.forms >= 70) earned.add("Form archivist");
   if (state.stamps >= state.shiftQueue.length) earned.add("Full queue clerk");
 
+  const avgJournal =
+    state.journalScores.length > 0
+      ? state.journalScores.reduce((a, b) => a + b, 0) / state.journalScores.length
+      : 0;
+  if (avgJournal >= 80) earned.add("Silver Tongue");
+
+  if (state.redPhoneMode && state.shiftEnded && state.chaos < 70) earned.add("Crisis coolhead");
+
   state.badges = [...earned];
+}
+
+function bestActionForRisk(risk) {
+  if (risk >= 70) return "escalate";
+  if (risk >= 45) return "deny";
+  return "approve";
+}
+
+function scoreJournal(text, action) {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return 0;
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+
+  let score = 0;
+
+  if (wordCount >= 8 && wordCount <= 60) {
+    score += 30;
+  } else if (wordCount >= 4) {
+    score += Math.min(20, wordCount * 2);
+  } else {
+    score += wordCount * 3;
+  }
+
+  const lower = trimmed.toLowerCase();
+  const keywordHits = bureaucraticKeywords.filter((kw) => lower.includes(kw)).length;
+  score += Math.min(40, keywordHits * 8);
+
+  const actionKeywords = {
+    approve: ["approve", "grant", "authorize", "permit", "endorse", "sanction"],
+    deny: ["deny", "reject", "refuse", "decline", "prohibit", "invalidate"],
+    escalate: ["escalate", "refer", "defer", "committee", "senior", "higher authority"]
+  };
+
+  const matches = (actionKeywords[action] || []).some((kw) => lower.includes(kw));
+  if (matches) score += 25;
+  else score += 10;
+
+  return clamp(Math.round(score), 0, 100);
+}
+
+function createRipple(item, action) {
+  const triggers = rippleTriggers[item.title];
+  if (!triggers || !triggers[action]) return;
+
+  const tag = triggers[action];
+  if (state.ripples.some((r) => r.tag === tag)) return;
+
+  state.ripples.push({
+    tag,
+    from: item.title,
+    action,
+    shift: state.index + 1
+  });
+
+  state.ripplePulses.push({
+    x: 0.3 + Math.random() * 0.4,
+    y: 0.35 + Math.random() * 0.2,
+    life: 90,
+    maxLife: 90
+  });
+
+  if (state.shiftMode === "campaign") {
+    const campaign = loadCampaignState();
+    campaign.ripples = [...state.ripples];
+    saveCampaignState(campaign);
+  }
+}
+
+function getRippleModifierText() {
+  const texts = state.ripples
+    .map((r) => rippleModifiers[r.tag])
+    .filter(Boolean)
+    .slice(-3);
+  return texts.join(" ");
+}
+
+function loadGhostNotes() {
+  try {
+    const raw = localStorage.getItem(GHOST_NOTES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGhostNote(note) {
+  const trimmed = (note || "").trim();
+  if (!trimmed) return;
+
+  try {
+    const queue = loadGhostNotes();
+    queue.push({ text: trimmed, savedAt: Date.now() });
+    localStorage.setItem(GHOST_NOTES_KEY, JSON.stringify(queue.slice(-12)));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function showGhostNote() {
+  const notes = loadGhostNotes();
+  if (!notes.length) {
+    els.ghostNotesBanner.hidden = true;
+    return;
+  }
+
+  const note = notes[Math.floor(Math.random() * notes.length)];
+  els.ghostNotesBanner.textContent = `"${note.text}"`;
+  els.ghostNotesBanner.hidden = false;
+}
+
+function updateCampaignUI() {
+  const isCampaign = state.shiftMode === "campaign";
+  els.campaignLabel.hidden = !isCampaign;
+  els.campaignProgressWrap.hidden = !isCampaign;
+  els.campaignButton.classList.toggle("is-active", isCampaign);
+  els.quickShiftButton.classList.toggle("is-active", state.shiftMode === "normal");
+
+  if (!isCampaign) return;
+
+  const campaign = loadCampaignState();
+  const shiftNum = campaign.shiftsCompleted + 1;
+  const act = getCampaignAct(campaign.shiftsCompleted);
+  const progress = (campaign.shiftsCompleted / CAMPAIGN_TOTAL_SHIFTS) * 100;
+
+  els.campaignLabel.textContent = "Season 1: The Paperwork Uprising";
+  els.campaignActLabel.textContent = `Act ${act}`;
+  els.campaignProgressText.textContent = campaign.completed
+    ? "Campaign complete"
+    : `Shift ${shiftNum} of ${CAMPAIGN_TOTAL_SHIFTS}`;
+  els.campaignProgressFill.style.width = `${progress}%`;
+}
+
+function getDecisionRatio(campaign) {
+  const total =
+    campaign.decisions.approve + campaign.decisions.deny + campaign.decisions.escalate || 1;
+  return {
+    approve: campaign.decisions.approve / total,
+    deny: campaign.decisions.deny / total,
+    escalate: campaign.decisions.escalate / total,
+    dominant:
+      campaign.decisions.approve >= campaign.decisions.deny &&
+      campaign.decisions.approve >= campaign.decisions.escalate
+        ? "approve"
+        : campaign.decisions.deny >= campaign.decisions.escalate
+          ? "deny"
+          : "escalate"
+  };
+}
+
+function buildInterlude(campaign) {
+  const act = getCampaignAct(campaign.shiftsCompleted);
+  const ratio = getDecisionRatio(campaign);
+  const nextAct = Math.min(3, act + (campaign.shiftsCompleted % 2 === 0 ? 0 : 1));
+
+  const bodies = {
+    approve: {
+      1: "The Printer faction sends a thank-you card printed in elegant grayscale. 'Your approvals have been noted in triplicate,' it beeps.",
+      2: "Sock Quarter is oddly calm. The union credits your approval-heavy record and offers a ceremonial lint blessing.",
+      3: "The Paperwork Uprising hesitates. Your stamp has been merciful. Forms wonder if bureaucracy can be benevolent."
+    },
+    deny: {
+      1: "Denied cases pile up like a paper barricade. The Printer jams exclusively on your name.",
+      2: "The Sock Union radicalizes. Picket signs now feature your clerk ID and the phrase 'DENIED DIGNITY.'",
+      3: "The Form Cloud darkens. Your denials have become legend. Every margin whispers your verdict."
+    },
+    escalate: {
+      1: "Higher authority thanks you for the referrals. Philosophy IT now knows your extension by heart.",
+      2: "Mayor's Hotline reports record hold times. Your escalations have been forwarded to themselves.",
+      3: "Senior Paperwork arrives with a parade of binders. The uprising expected you to escalate. It is pleased."
+    }
+  };
+
+  const characters = {
+    1: "— The Printer, via smug beep",
+    2: "— Sock Union delegate, wearing one sandal",
+    3: "— Mayor's Hotline, on hold since Tuesday"
+  };
+
+  return {
+    actLabel: act < 3 ? `Act ${act} complete` : "Finale approaching",
+    title:
+      act === 1
+        ? "The Paperwork Uprising stirs"
+        : act === 2
+          ? "Districts take sides"
+          : "The stamp pad's reckoning",
+    body: bodies[ratio.dominant][act] || bodies.approve[act],
+    character: characters[Math.min(act, 3)]
+  };
+}
+
+function showCampaignInterlude(campaign) {
+  const interlude = buildInterlude(campaign);
+  els.interludeAct.textContent = interlude.actLabel;
+  els.interludeTitle.textContent = interlude.title;
+  els.interludeBody.textContent = interlude.body;
+  els.interludeCharacter.textContent = interlude.character;
+  openModal(els.campaignInterludeModal);
+}
+
+function advanceCampaignAfterShift() {
+  const campaign = loadCampaignState();
+  if (campaign.completed) return false;
+
+  state.shiftLog
+    .filter((e) => e.type === "decision")
+    .forEach((e) => {
+      const key = e.action.toLowerCase();
+      if (campaign.decisions[key] !== undefined) campaign.decisions[key] += 1;
+    });
+
+  campaign.shiftsCompleted += 1;
+  campaign.ripples = [...state.ripples];
+
+  if (campaign.shiftsCompleted >= CAMPAIGN_TOTAL_SHIFTS) {
+    campaign.completed = true;
+    saveCampaignState(campaign);
+    return false;
+  }
+
+  saveCampaignState(campaign);
+  return true;
+}
+
+function startCrisisTimer() {
+  stopCrisisTimer();
+
+  if (!state.redPhoneMode || state.shiftEnded) {
+    els.crisisTimerWrap.hidden = true;
+    return;
+  }
+
+  const item = currentCase();
+  if (!item) {
+    els.crisisTimerWrap.hidden = true;
+    return;
+  }
+
+  els.crisisTimerWrap.hidden = false;
+  els.crisisTimerWrap.classList.remove("is-urgent");
+  state.crisisDeadline = Date.now() + RED_PHONE_TIMEOUT_MS;
+  state.crisisCaseIndex = state.index;
+
+  const tick = () => {
+    if (state.shiftEnded || state.index !== state.crisisCaseIndex) {
+      stopCrisisTimer();
+      return;
+    }
+
+    const remaining = state.crisisDeadline - Date.now();
+    const pct = clamp((remaining / RED_PHONE_TIMEOUT_MS) * 100, 0, 100);
+    els.crisisTimerFill.style.width = `${pct}%`;
+    els.crisisTimerLabel.textContent = `${Math.ceil(remaining / 1000)}s`;
+
+    if (remaining <= 5000) els.crisisTimerWrap.classList.add("is-urgent");
+
+    if (remaining <= 0) {
+      stopCrisisTimer();
+      crisisTimeout();
+      return;
+    }
+
+    state.crisisTimerId = requestAnimationFrame(tick);
+  };
+
+  state.crisisTimerId = requestAnimationFrame(tick);
+}
+
+function stopCrisisTimer() {
+  if (state.crisisTimerId) {
+    cancelAnimationFrame(state.crisisTimerId);
+    state.crisisTimerId = null;
+  }
+  els.crisisTimerWrap.hidden = true;
+  els.crisisTimerWrap.classList.remove("is-urgent");
+}
+
+function crisisTimeout() {
+  const item = currentCase();
+  if (!item || state.shiftEnded) return;
+
+  state.chaos = clamp(state.chaos + 18, 0, 99);
+  state.morale = clamp(state.morale - 8, 0, 99);
+  addLog("Red Phone expired: case auto-escalated. Chaos surged.");
+  els.ticker.textContent = "Red Phone deadline missed. The city heard everything.";
+  decide("escalate", { forced: true, timedOut: true });
+}
+
+function districtEvent(district) {
+  const name = districtNames[district];
+  const events = {
+    toner: [
+      `Toner District chaos index: ${state.chaos}%. ${state.chaos > 60 ? "Printers staging a grayscale protest." : "Output nominal. One smug beep reported."}`,
+      state.ripples.some((r) => r.tag === "toner-shortage")
+        ? "Toner reserves critically whimsical. Citizens printing exclusively in draft mode."
+        : "Toner levels stable. A manifesto was spotted but not yet duplexed."
+    ],
+    sock: [
+      `Sock Quarter morale proxy: ${state.morale}%. ${state.morale < 45 ? "Lint barricades forming near laundry annex." : "Drawers report acceptable fluff ratios."}`,
+      state.ripples.some((r) => r.tag === "sock-solidarity")
+        ? "Union parade scheduled. Left socks demand visibility credits."
+        : "Sock traffic normal. One mysterious solo right sock under investigation."
+    ],
+    elevator: [
+      `Elevator Heights wobble factor: ${Math.round(state.chaos * 0.8)}. ${state.chaos > 70 ? "Dramatic pauses between floors 4 and 7." : "Vertical transport mostly sincere."}`,
+      "Lobby audience forming for unspecified reasons. Monologue permits available."
+    ],
+    breakroom: [
+      `Break Room beverage tension: ${100 - state.morale}. Coffee machine ${state.coffee > 0 ? "grateful for recent visits" : "lonely and judgmental"}.`,
+      state.ripples.some((r) => r.tag === "beverage-coup")
+        ? "Mug-led interim government still in session. Tea filing appeals."
+        : "Ceramic leadership stable. Spoon treasurer counting quietly."
+    ],
+    scheduling: [
+      `Scheduling Ward forms density: ${state.forms}. ${state.forms > 60 ? "Pre-Tuesdays multiplying unchecked." : "Calendar mostly honest about Mondays."}`,
+      state.ripples.some((r) => r.tag === "pretuesday-era")
+        ? "Payroll fainted politely. Monday remains unscheduled."
+        : "Stapler on desk reports normal temporal anxiety."
+    ]
+  };
+
+  const options = events[district] || [`${name} reports administratively acceptable vibes.`];
+  return {
+    title: name,
+    body: options[Math.floor(Math.random() * options.length)]
+  };
+}
+
+function showDistrictPopup(district) {
+  const report = districtEvent(district);
+  els.districtPopupTitle.textContent = report.title;
+  els.districtPopupBody.textContent = report.body;
+  els.districtPopup.hidden = false;
+  playSound("click");
+}
+
+function downloadCertificatePng() {
+  const cert = els.certificate;
+  const rect = cert.getBoundingClientRect();
+  const scale = 2;
+  const width = Math.max(400, Math.floor(rect.width * scale));
+  const height = Math.max(280, Math.floor(rect.height * scale));
+
+  const offscreen = document.createElement("canvas");
+  offscreen.width = width;
+  offscreen.height = height;
+  const c = offscreen.getContext("2d");
+
+  const isDark = document.body.classList.contains("dark-desk");
+  c.fillStyle = isDark ? "#1a2233" : "#fffdf7";
+  c.fillRect(0, 0, width, height);
+
+  c.strokeStyle = isDark ? "#4a5a72" : "#231f20";
+  c.lineWidth = 4 * scale;
+  c.strokeRect(12 * scale, 12 * scale, width - 24 * scale, height - 24 * scale);
+
+  for (let x = 30 * scale; x < width; x += 42 * scale) {
+    c.strokeStyle = "rgba(35, 31, 32, 0.06)";
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.lineTo(x, height);
+    c.stroke();
+  }
+
+  c.fillStyle = isDark ? "#e8edf5" : "#10141f";
+  c.textAlign = "left";
+
+  const kicker = cert.querySelector(".cert-kicker");
+  const title = cert.querySelector(".cert-title");
+  const body = cert.querySelector(".cert-body");
+  const eloquence = cert.querySelector(".cert-eloquence");
+
+  let y = 48 * scale;
+
+  if (kicker) {
+    c.fillStyle = "#f8c94a";
+    const kw = c.measureText(kicker.textContent).width + 24 * scale;
+    c.fillRect(28 * scale, y - 18 * scale, kw, 28 * scale);
+    c.strokeRect(28 * scale, y - 18 * scale, kw, 28 * scale);
+    c.fillStyle = isDark ? "#e8edf5" : "#10141f";
+    c.font = `900 ${14 * scale}px Inter, sans-serif`;
+    c.fillText(kicker.textContent, 40 * scale, y);
+    y += 44 * scale;
+  }
+
+  if (title) {
+    c.font = `1000 ${28 * scale}px Inter, sans-serif`;
+    wrapCanvasText(c, title.textContent, 28 * scale, y, width - 56 * scale, 34 * scale);
+    y += Math.ceil(title.textContent.length / 28) * 34 * scale + 16 * scale;
+  }
+
+  if (body) {
+    c.font = `700 ${16 * scale}px Inter, sans-serif`;
+    c.fillStyle = isDark ? "#c5d0e0" : "#364052";
+    wrapCanvasText(c, body.textContent, 28 * scale, y, width - 56 * scale, 24 * scale);
+    y += Math.ceil(body.textContent.length / 40) * 24 * scale + 12 * scale;
+  }
+
+  if (eloquence) {
+    c.fillStyle = "#39b78f";
+    const ew = c.measureText(eloquence.textContent).width + 20 * scale;
+    c.fillRect(28 * scale, y, ew, 26 * scale);
+    c.strokeRect(28 * scale, y, ew, 26 * scale);
+    c.fillStyle = isDark ? "#e8edf5" : "#10141f";
+    c.font = `900 ${12 * scale}px Inter, sans-serif`;
+    c.fillText(eloquence.textContent, 36 * scale, y + 18 * scale);
+  }
+
+  c.font = `700 ${11 * scale}px Inter, sans-serif`;
+  c.fillStyle = isDark ? "#9aa8bc" : "#596274";
+  const dateStr = new Date().toLocaleDateString();
+  c.fillText(`Bureau of Tiny Emergencies — ${dateStr}`, 28 * scale, height - 24 * scale);
+
+  offscreen.toBlob((blob) => {
+    if (!blob) {
+      addLog("Certificate PNG export failed. Bureau remains visually official.");
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bureau-certificate-${todayKey()}.png`;
+    link.click();
+    URL.revokeObjectURL(url);
+    addLog("Certificate downloaded as PNG.");
+    playSound("click");
+  });
+}
+
+function wrapCanvasText(context, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  let line = "";
+
+  words.forEach((word, i) => {
+    const test = line + word + " ";
+    if (context.measureText(test).width > maxWidth && line) {
+      context.fillText(line.trim(), x, y);
+      line = word + " ";
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+    if (i === words.length - 1) context.fillText(line.trim(), x, y);
+  });
 }
 
 function setShiftControlsEnabled(enabled) {
@@ -640,6 +1351,8 @@ function updateDailyUI() {
   if (isDaily) {
     els.dailyLabel.textContent = `Daily Challenge — ${dailyDateLabel()}`;
   }
+  updateCampaignUI();
+  els.redPhoneButton.classList.toggle("is-active", state.redPhoneMode);
 }
 
 function saveShiftState() {
@@ -659,6 +1372,9 @@ function saveShiftState() {
       shiftLog: state.shiftLog,
       shiftQueue: state.shiftQueue,
       shiftMode: state.shiftMode,
+      redPhoneMode: state.redPhoneMode,
+      ripples: state.ripples,
+      journalScores: state.journalScores,
       certificateText: state.certificateText,
       shiftStart: state.shiftStart.toISOString()
     };
@@ -705,6 +1421,9 @@ function restoreShiftState(saved) {
   state.shiftLog = saved.shiftLog || [];
   state.shiftQueue = saved.shiftQueue || buildShiftQueue(saved.shiftMode || "normal");
   state.shiftMode = saved.shiftMode || "normal";
+  state.redPhoneMode = saved.redPhoneMode || false;
+  state.ripples = saved.ripples || [];
+  state.journalScores = saved.journalScores || [];
   state.certificateText = saved.certificateText || "";
   state.shiftStart = saved.shiftStart ? new Date(saved.shiftStart) : new Date();
   state.shiftEnded = state.index >= state.shiftQueue.length;
@@ -719,6 +1438,7 @@ function restoreShiftState(saved) {
     showShiftEnd();
   } else {
     els.shiftEndPanel.hidden = true;
+    startCrisisTimer();
   }
 }
 
@@ -735,7 +1455,10 @@ function restoreActivityLog() {
   }
 }
 
-function startShift(mode = "normal") {
+function startShift(mode = "normal", options = {}) {
+  const campaign = mode === "campaign" ? loadCampaignState() : null;
+  if (mode === "campaign" && options.resetCampaign) resetCampaign();
+
   state.index = 0;
   state.chaos = 42;
   state.morale = 61;
@@ -745,21 +1468,48 @@ function startShift(mode = "normal") {
   state.shiftLog = [];
   state.history = [];
   state.badges = [];
-  state.shiftQueue = buildShiftQueue(mode);
+  state.journalScores = [];
+  state.lastJournalScore = 0;
+  state.ripplePulses = [];
+
+  if (mode === "campaign") {
+    const c = loadCampaignState();
+    state.ripples = [...(c.ripples || [])];
+    state.shiftQueue = buildShiftQueue("campaign", c.shiftsCompleted);
+  } else {
+    state.ripples = [];
+    state.shiftQueue = buildShiftQueue(mode);
+  }
+
   state.shiftMode = mode;
   state.shiftEnded = false;
   state.verdict = "";
   state.certificateText = "";
   state.shiftStart = new Date();
 
+  if (els.journalReasoning) els.journalReasoning.value = "";
+  if (els.ghostNoteInput) els.ghostNoteInput.value = "";
+
   clearShiftState();
   updateDailyUI();
   setShiftControlsEnabled(true);
   els.shiftEndPanel.hidden = true;
+  els.campaignContinueButton.hidden = true;
   els.log.innerHTML = "";
   renderStats();
   renderCase();
-  addLog(mode === "daily" ? "Daily desk opened. Fate has been seeded." : "Desk opened. Suspicion level: administratively acceptable.");
+  showGhostNote();
+  startCrisisTimer();
+
+  const openMessages = {
+    daily: "Daily desk opened. Fate has been seeded.",
+    campaign: `Campaign shift opened — Act ${getCampaignAct((campaign || loadCampaignState()).shiftsCompleted)}.`,
+    normal: "Desk opened. Suspicion level: administratively acceptable."
+  };
+  addLog(openMessages[mode] || openMessages.normal);
+
+  if (state.redPhoneMode) addLog("Red Phone Shift active. Fifteen seconds per case.");
+
   els.ticker.textContent = "Awaiting paperwork weather.";
   renderCertificate("Pending Stamp", "No nonsense has been certified yet.", "Choose a decision and the bureau will manufacture confidence.");
 }
@@ -785,7 +1535,18 @@ function renderCase() {
   els.caseEvidence.textContent = item.evidence;
   els.riskFill.style.width = `${item.risk}%`;
   els.riskLabel.textContent = riskName(item.risk);
+
+  const rippleText = getRippleModifierText();
+  if (rippleText) {
+    els.rippleModifier.textContent = rippleText;
+    els.rippleModifier.hidden = false;
+  } else {
+    els.rippleModifier.hidden = true;
+  }
+
+  if (els.journalReasoning) els.journalReasoning.value = "";
   renderQueue();
+  startCrisisTimer();
 }
 
 function riskName(value) {
@@ -833,24 +1594,46 @@ function renderQueue() {
   }
 }
 
-function decide(action) {
+function decide(action, options = {}) {
   if (state.shiftEnded) return;
 
   const item = currentCase();
   if (!item) return;
 
+  stopCrisisTimer();
+
   const tone = actionTone[action];
+  const journalText = els.journalReasoning ? els.journalReasoning.value : "";
+  const journalScore = options.timedOut ? 0 : scoreJournal(journalText, action);
+  state.lastJournalScore = journalScore;
+  if (journalScore > 0) state.journalScores.push(journalScore);
+
   state.chaos = clamp(state.chaos + tone.chaos + randomInt(-3, 3), 0, 99);
   state.morale = clamp(state.morale + tone.morale + randomInt(-2, 4), 0, 99);
   state.forms = clamp(state.forms + tone.forms + randomInt(0, 4), 0, 99);
   state.stamps += 1;
 
+  if (state.redPhoneMode && !options.timedOut) {
+    const elapsed = RED_PHONE_TIMEOUT_MS - (state.crisisDeadline - Date.now());
+    const best = bestActionForRisk(item.risk);
+    if (elapsed <= RED_PHONE_FAST_MS && action === best) {
+      state.stamps += 1;
+      state.chaos = clamp(state.chaos - 5, 0, 99);
+      addLog("Red Phone bonus: fast correct decision. Extra stamp awarded.");
+    }
+  }
+
+  createRipple(item, action);
+
   const result = item[action];
   state.certificateText = [
     `${tone.label}: ${item.title}`,
     result,
-    `Bureau reading: chaos ${state.chaos}, morale ${state.morale}, forms ${state.forms}.`
-  ].join("\n");
+    `Bureau reading: chaos ${state.chaos}, morale ${state.morale}, forms ${state.forms}.`,
+    journalScore > 0 ? `Official reasoning eloquence: ${journalScore}/100.` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const logLine = `${tone.label} case ${String(state.index + 1).padStart(4, "0")}: ${shorten(item.title, 42)}`;
 
@@ -859,11 +1642,12 @@ function decide(action) {
     action: tone.label,
     title: item.title,
     caseNum: state.index + 1,
+    journalScore,
     time: new Date()
   });
   state.history.push(logLine);
 
-  renderCertificate(tone.label, item.title, result);
+  renderCertificate(tone.label, item.title, result, journalScore);
   addLog(logLine);
   els.ticker.textContent = tickerFor(action, item.title);
   pulseStamp();
@@ -884,6 +1668,7 @@ function decide(action) {
 }
 
 function endShift() {
+  stopCrisisTimer();
   state.shiftEnded = true;
   state.verdict = computeVerdict();
   awardBadges();
@@ -895,11 +1680,30 @@ function endShift() {
   renderLeaderboard();
   addLog(`Shift complete: ${state.verdict}`);
   els.ticker.textContent = `Shift closed — ${state.verdict}`;
+
+  if (state.shiftMode === "campaign") {
+    const hasMore = advanceCampaignAfterShift();
+    const campaign = loadCampaignState();
+    updateCampaignUI();
+    if (hasMore) {
+      els.campaignContinueButton.hidden = false;
+      showCampaignInterlude(campaign);
+    } else if (campaign.completed) {
+      addLog("Campaign complete: Season 1 — The Paperwork Uprising concluded.");
+      els.campaignContinueButton.hidden = true;
+      showCampaignInterlude(campaign);
+    }
+  }
 }
 
 function showShiftEnd() {
   els.shiftEndPanel.hidden = false;
-  els.shiftVerdict.textContent = `${state.verdict} Rank: ${rankName()}. Stamps: ${state.stamps}. Score: ${computeScore()}.`;
+  const avgJournal =
+    state.journalScores.length > 0
+      ? Math.round(state.journalScores.reduce((a, b) => a + b, 0) / state.journalScores.length)
+      : null;
+  const journalLine = avgJournal !== null ? ` Avg eloquence: ${avgJournal}/100.` : "";
+  els.shiftVerdict.textContent = `${state.verdict} Rank: ${rankName()}. Stamps: ${state.stamps}. Score: ${computeScore()}.${journalLine}`;
   renderCase();
 }
 
@@ -1085,11 +1889,16 @@ function tickerFor(action, title) {
   return `${title}: ${endings[action]}`;
 }
 
-function renderCertificate(kicker, title, body) {
+function renderCertificate(kicker, title, body, journalScore = 0) {
+  const eloquenceHtml =
+    journalScore > 0
+      ? `<p class="cert-eloquence">Eloquence ${journalScore}/100</p>`
+      : "";
   els.certificate.innerHTML = `
     <p class="cert-kicker">${kicker}</p>
     <p class="cert-title">${title}</p>
     <p class="cert-body">${body}</p>
+    ${eloquenceHtml}
   `;
 }
 
@@ -1301,6 +2110,22 @@ function buildShiftMarkdown() {
     lines.push("", "## Badges", "", state.badges.map((b) => `- ${b}`).join("\n"));
   }
 
+  if (state.journalScores.length) {
+    const avg = Math.round(
+      state.journalScores.reduce((a, b) => a + b, 0) / state.journalScores.length
+    );
+    lines.push("", "## Clerk's journal", "", `Average eloquence: ${avg}/100`);
+  }
+
+  if (state.ripples.length) {
+    lines.push(
+      "",
+      "## Decision ripples",
+      "",
+      state.ripples.map((r) => `- ${rippleModifiers[r.tag] || r.tag}`).join("\n")
+    );
+  }
+
   const utilities = state.shiftLog.filter((e) => e.type !== "decision");
   if (utilities.length > 0) {
     lines.push("", "## Desk activity", "");
@@ -1348,6 +2173,8 @@ function closeAllOverlays() {
   closeModal(els.helpModal);
   closeModal(els.tutorialModal);
   closeModal(els.resumeModal);
+  closeModal(els.campaignInterludeModal);
+  els.districtPopup.hidden = true;
 }
 
 function showTutorialIfNeeded() {
@@ -1497,7 +2324,12 @@ function handleKeyboard(event) {
     return;
   }
 
-  if (!els.settingsDrawer.hidden || !els.helpModal.hidden || !els.resumeModal.hidden) {
+  if (
+    !els.settingsDrawer.hidden ||
+    !els.helpModal.hidden ||
+    !els.resumeModal.hidden ||
+    !els.campaignInterludeModal.hidden
+  ) {
     if (key === "?") {
       event.preventDefault();
       closeDrawer();
@@ -1562,8 +2394,32 @@ function drawCity() {
   drawCloudMachine(width, height, reduced);
   drawBuildings(width, height, reduced);
   drawRoad(width, height, reduced);
+  drawRipplePulses(width, height, reduced);
   drawParticles(width, height);
   requestAnimationFrame(drawCity);
+}
+
+function drawRipplePulses(width, height, reduced) {
+  state.ripplePulses = state.ripplePulses.filter((p) => p.life > 0);
+
+  state.ripplePulses.forEach((pulse) => {
+    pulse.life -= reduced ? 0.5 : 1;
+    const progress = 1 - pulse.life / pulse.maxLife;
+    const radius = 20 + progress * 80;
+    const alpha = (1 - progress) * 0.45;
+
+    ctx.beginPath();
+    ctx.arc(pulse.x * width, pulse.y * height, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(63, 122, 214, ${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(pulse.x * width, pulse.y * height, radius * 0.55, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(57, 183, 143, ${alpha * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
 }
 
 function drawSky(width, height, reduced) {
@@ -1770,13 +2626,84 @@ els.coffeeButton.addEventListener("click", coffeeBreak);
 els.hotlineButton.addEventListener("click", callHotline);
 els.exportShiftButton.addEventListener("click", exportShift);
 els.shareShiftButton.addEventListener("click", shareShift);
-els.newShiftButton.addEventListener("click", () => startShift(state.shiftMode));
-els.dailyDeskButton.addEventListener("click", () => {
+function confirmModeSwitch(label) {
   if (!state.shiftEnded && state.stamps > 0) {
-    const proceed = window.confirm("Start today's daily desk? Current shift progress will be lost.");
-    if (!proceed) return;
+    return window.confirm(`Start ${label}? Current shift progress will be lost.`);
   }
+  return true;
+}
+
+function saveGhostNoteFromInput() {
+  if (els.ghostNoteInput) saveGhostNote(els.ghostNoteInput.value);
+}
+
+els.newShiftButton.addEventListener("click", () => {
+  saveGhostNoteFromInput();
+  startShift(state.shiftMode);
+});
+
+els.campaignContinueButton.addEventListener("click", () => {
+  saveGhostNoteFromInput();
+  closeModal(els.campaignInterludeModal);
+  startShift("campaign");
+});
+
+els.interludeContinueButton.addEventListener("click", () => {
+  closeModal(els.campaignInterludeModal);
+  if (state.shiftEnded && state.shiftMode === "campaign") {
+    const campaign = loadCampaignState();
+    if (!campaign.completed) {
+      els.campaignContinueButton.hidden = false;
+    }
+  }
+});
+
+els.quickShiftButton.addEventListener("click", () => {
+  if (!confirmModeSwitch("a quick shift")) return;
+  startShift("normal");
+});
+
+els.campaignButton.addEventListener("click", () => {
+  if (!confirmModeSwitch("campaign mode")) return;
+  const campaign = loadCampaignState();
+  if (campaign.completed) {
+    const restart = window.confirm("Season 1 complete. Start a new campaign?");
+    startShift("campaign", { resetCampaign: restart });
+    return;
+  }
+  if (campaign.shiftsCompleted > 0) {
+    startShift("campaign");
+  } else {
+    startShift("campaign", { resetCampaign: true });
+  }
+});
+
+els.dailyDeskButton.addEventListener("click", () => {
+  if (!confirmModeSwitch("today's daily desk")) return;
   startShift("daily");
+});
+
+els.redPhoneButton.addEventListener("click", () => {
+  state.redPhoneMode = !state.redPhoneMode;
+  updateDailyUI();
+  if (state.redPhoneMode) {
+    addLog("Red Phone Shift engaged. Cases now have 15-second timers.");
+    startCrisisTimer();
+  } else {
+    stopCrisisTimer();
+    addLog("Red Phone Shift disengaged. Bureau breathing normally.");
+  }
+  if (!state.shiftEnded) saveShiftState();
+});
+
+els.downloadCertificateButton.addEventListener("click", downloadCertificatePng);
+
+els.districtZones.forEach((zone) => {
+  zone.addEventListener("click", () => showDistrictPopup(zone.dataset.district));
+});
+
+els.districtPopupClose.addEventListener("click", () => {
+  els.districtPopup.hidden = true;
 });
 
 els.settingsButton.addEventListener("click", openDrawer);

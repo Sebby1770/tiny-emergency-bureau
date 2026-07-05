@@ -627,7 +627,7 @@ canvas {
 
 .machine {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 96px 1fr 1fr;
   gap: 12px;
   align-items: center;
 }
@@ -1638,4 +1638,320 @@ body.reduced-motion .icon-button {
   .mode-button {
     flex: 1;
   }
+
+  .machine {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Campaign progress */
+.campaign-progress-wrap {
+  width: 100%;
+  margin: -6px 0 6px;
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 248, 236, 0.92);
+  box-shadow: var(--tight-shadow);
+}
+
+.campaign-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.campaign-progress-bar {
+  height: 12px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #ece1cc;
+  overflow: hidden;
+}
+
+.campaign-progress-bar span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--violet), var(--blue));
+  transition: width 320ms ease;
+}
+
+.campaign-label {
+  background: var(--violet);
+  color: #fff8ec;
+}
+
+.mode-button-crisis.is-active {
+  background: var(--coral);
+  color: #fff8ec;
+}
+
+/* Crisis timer */
+.crisis-timer-wrap {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 2px solid var(--coral-dark);
+  border-radius: var(--radius);
+  background: rgba(240, 95, 75, 0.12);
+}
+
+.crisis-timer-wrap.is-urgent .crisis-timer-bar span {
+  background: var(--coral);
+  animation: crisis-pulse 600ms ease infinite;
+}
+
+.crisis-timer-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.crisis-label {
+  color: var(--coral-dark);
+}
+
+@keyframes crisis-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.crisis-timer-bar {
+  height: 10px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #ece1cc;
+  overflow: hidden;
+}
+
+.crisis-timer-bar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--coral));
+  transition: width 100ms linear;
+}
+
+/* Ripples & ghost notes */
+.ripple-modifier {
+  margin: -8px 0 14px;
+  padding: 10px 12px;
+  border-left: 6px solid var(--blue);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: rgba(63, 122, 214, 0.12);
+  color: #2a4a7a;
+  font-size: 0.92rem;
+  font-weight: 780;
+  line-height: 1.4;
+}
+
+.ghost-notes-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 2px dashed var(--violet);
+  border-radius: var(--radius);
+  background: rgba(115, 80, 168, 0.1);
+  color: #4a3568;
+  font-size: 0.88rem;
+  font-weight: 750;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.ghost-notes-banner::before {
+  content: "Ghost clerk: ";
+  font-style: normal;
+  font-weight: 950;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--violet);
+}
+
+/* Clerk journal */
+.journal-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.journal-field textarea,
+.ghost-note-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: #fffdf7;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 680;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.journal-score-hint {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.cert-eloquence {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 8px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+/* District map */
+.district-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  pointer-events: none;
+}
+
+.district-zone {
+  pointer-events: auto;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.district-zone:hover,
+.district-zone:focus-visible {
+  background: rgba(248, 201, 74, 0.22);
+  outline: none;
+}
+
+.district-zone:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--blue);
+}
+
+.district-popup {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 4;
+  width: min(340px, calc(100% - 24px));
+  padding: 14px 38px 14px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 248, 236, 0.96);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+}
+
+.district-popup[hidden] {
+  display: none;
+}
+
+.district-popup strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.district-popup p {
+  margin: 0;
+  color: #364052;
+  font-size: 0.88rem;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.district-popup-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: #fffdf7;
+  font-size: 1.1rem;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.download-button {
+  background: #d8c8f0;
+}
+
+.download-icon::before {
+  left: 8px;
+  top: 3px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid var(--line);
+}
+
+.download-icon::after {
+  left: 5px;
+  top: 11px;
+  width: 10px;
+  height: 8px;
+  border: 2px solid var(--line);
+  border-top: 0;
+  background: #fffaf1;
+}
+
+.shift-end-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ghost-note-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.interlude-character {
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(248, 201, 74, 0.25);
+  font-weight: 820;
+  font-style: italic;
+}
+
+.modal-panel-wide {
+  width: min(580px, 100%);
+}
+
+body.dark-desk .campaign-progress-wrap,
+body.dark-desk .district-popup {
+  background: rgba(26, 34, 51, 0.96);
+}
+
+body.dark-desk .ripple-modifier,
+body.dark-desk .ghost-notes-banner {
+  color: #c5d0e0;
+}
+
+body.dark-desk .journal-field textarea,
+body.dark-desk .ghost-note-field textarea {
+  background: #121a28;
+  color: var(--ink);
 }

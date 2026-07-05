@@ -2,6 +2,24 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 2026-07-05 v3
+
+### Added
+
+- **Campaign mode — Season 1: The Paperwork Uprising** — Toggle **Campaign** vs **Quick shift**; 3-act narrative across 6 shifts with recurring characters (Printer, Sock Union, Mayor's Hotline). Campaign state persisted in `localStorage` (`bureau-campaign-v1`). Between-shift story interludes react to your cumulative approve/deny/escalate ratio. Act 2 and Act 3 unlock campaign-only cases. Campaign progress bar in the top bar.
+- **Decision ripple system** — Past decisions tag the world (`state.ripples`); later cases show dynamic modifier text appended to summaries. Visual ripple-pulse animation on the city canvas when a ripple is created.
+- **Red Phone crisis mode** — Toggle **Red Phone Shift** for 15-second countdown timers per case. Timer bar on the case panel; timeout auto-escalates with chaos spike. Bonus stamps for fast correct decisions (matching risk-based best action within 8 seconds).
+- **Clerk's journal** — Optional "Official reasoning" textarea before each decision. Eloquence scored 0–100 from word count, bureaucratic keywords, and decision-type alignment. Score shown on certificate; **Silver Tongue** badge at 80+ session average.
+- **Interactive district map** — Five clickable districts overlaid on the city canvas (Toner District, Sock Quarter, Elevator Heights, Break Room, Scheduling Ward). Each shows a localized chaos popup based on current stats and ripples.
+- **Certificate PNG export** — **Download PNG** button renders the certificate via manual canvas drawing (no external libraries). Saves as `bureau-certificate-{date}.png`.
+- **Ghost clerk notes** — Optional note for the next clerk at shift end, saved to a `localStorage` queue. Rotating ghost notes from past sessions appear at shift start.
+
+### Changed
+
+- Mode strip now includes Quick shift, Campaign, Daily desk, and Red Phone toggles.
+- Shift export summary includes journal eloquence and decision ripples.
+- Hall of clerks and badges recognize crisis and eloquence achievements.
+
 ## 2026-07-05 v2
 
 ### Added
@@ -27,7 +45,7 @@ All notable changes to the Bureau of Tiny Emergencies project.
 
 - **Keyboard shortcuts** — `A` approve, `D` deny, `E` escalate, `S` scan, `C` coffee, `H` hotline, `P` panic, `?` help. Shortcuts are disabled while typing in form fields.
 - **Settings drawer** — Gear button opens a panel with reduced motion, dark desk theme, and Web Audio sound effects. Preferences persist in `localStorage`.
-- **First-visit tutorial modal** — Welcomes new clerks on first load; dismissal is remembered in `localStorage`.
+- **First-visit tutorial** — Welcomes new clerks on first load; dismissal is remembered in `localStorage`.
 - **Export shift summary** — Copies a markdown report of stats, rank, and decisions to the clipboard.
 - **Desk utilities** — Scan (case clues), Coffee (morale boost), and Hotline (bureau advice) buttons with keyboard bindings.
 - **Four new cases** — Stapler emotional damages, compliment-triggered fire alarm, judgmental parking meter, and nocturnal ceiling-fan poetry.
