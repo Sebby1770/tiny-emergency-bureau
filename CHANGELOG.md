@@ -2,6 +2,24 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 2026-07-05 v4
+
+### Added
+
+- **Career Stats Dashboard** — Lifetime panel tracking total shifts, stamps, approvals/denials/escalations, best score, and badges earned. Persisted in `localStorage` (`bureau-career-v1`). Top-bar dossier button opens a modal.
+- **Achievement Gallery** — Full-screen gallery of all 18 badges (earned + locked with hint text). Grid layout with unlock animations. New honors for Audit Week, career milestones, Speed demon, Ripple architect, Hotline hero, and more.
+- **Bureau Radio** — Dynamic news ticker above the case bulletin. Headlines generated from ripples, chaos, campaign act, audit/red-phone status, and recent decisions. Rotates every 8 seconds with typewriter effect.
+- **Desk Customization** — Settings: clerk name (printed on certificates and leaderboard). Four desk theme presets (**Classic**, **Midnight**, **Mint**, **Sunbleached**) applied via CSS variables and `data-theme`.
+- **Audit Week Hard Mode** — Toggle drains forms by 1 every 10 seconds, adds +15 risk to all cases, and slowly raises chaos. **Survived Audit Week** badge for completing a full audit shift.
+- **Challenge Codes** — At shift end, a shareable 6-character code encodes score, mode, and date. **Load challenge** input compares your score against a friend's target.
+- **Evidence Sketch Viewer** — Procedural canvas doodle per case (shapes seeded from case hash). Click the thumbnail to enlarge in a lightbox.
+
+### Changed
+
+- Certificates and PNG export include the configured clerk name.
+- Career stats update automatically at shift end; gallery reflects lifetime unlocks.
+- Mode strip adds **Audit Week** alongside Red Phone and other shift modes.
+
 ## 2026-07-05 v3
 
 ### Added

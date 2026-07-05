@@ -235,10 +235,37 @@ const DAILY_BEST_KEY = "bureau-daily-best";
 const LOCAL_LEADERBOARD_KEY = "bureau-local-leaderboard";
 const CAMPAIGN_KEY = "bureau-campaign-v1";
 const GHOST_NOTES_KEY = "bureau-ghost-notes";
+const CAREER_KEY = "bureau-career-v1";
 const SHIFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const RED_PHONE_TIMEOUT_MS = 15000;
 const RED_PHONE_FAST_MS = 8000;
 const CAMPAIGN_TOTAL_SHIFTS = 6;
+const AUDIT_DRAIN_MS = 10000;
+const RADIO_ROTATE_MS = 8000;
+const CHALLENGE_CHARSET = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+const DESK_THEMES = ["classic", "midnight", "mint", "sunbleached"];
+
+const BADGE_DEFINITIONS = [
+  { id: "first-stamp", name: "First stamp", icon: "📌", hint: "Issue your first stamp of the shift." },
+  { id: "caffeine-liaison", name: "Caffeine liaison", icon: "☕", hint: "Take 3 coffee breaks in one shift." },
+  { id: "chaos-enjoyer", name: "Chaos enjoyer", icon: "🌪️", hint: "Let chaos reach 80 or higher." },
+  { id: "morale-gardener", name: "Morale gardener", icon: "🌱", hint: "Raise morale to 75 or higher." },
+  { id: "form-archivist", name: "Form archivist", icon: "📚", hint: "Accumulate 70+ forms in one shift." },
+  { id: "full-queue", name: "Full queue clerk", icon: "✅", hint: "Stamp every case in the shift queue." },
+  { id: "silver-tongue", name: "Silver Tongue", icon: "🖋️", hint: "Average 80+ journal eloquence in a shift." },
+  { id: "crisis-coolhead", name: "Crisis coolhead", icon: "📞", hint: "Finish a Red Phone shift with chaos under 70." },
+  { id: "survived-audit", name: "Survived Audit Week", icon: "🔍", hint: "Complete a full shift during Audit Week." },
+  { id: "speed-demon", name: "Speed demon", icon: "⚡", hint: "Make 3 fast correct Red Phone calls in one shift." },
+  { id: "bureau-veteran", name: "Bureau veteran", icon: "🏛️", hint: "Complete 10 career shifts." },
+  { id: "stamp-collector", name: "Stamp collector", icon: "🗂️", hint: "Earn 100 career stamps." },
+  { id: "daily-champion", name: "Daily champion", icon: "📅", hint: "Set a new daily best score." },
+  { id: "campaign-survivor", name: "Campaign survivor", icon: "📜", hint: "Finish Season 1: The Paperwork Uprising." },
+  { id: "ripple-architect", name: "Ripple architect", icon: "🌊", hint: "Trigger 5+ decision ripples in one shift." },
+  { id: "hotline-hero", name: "Hotline hero", icon: "📱", hint: "Call the hotline 5 times in one shift." },
+  { id: "scanner-specialist", name: "Scanner specialist", icon: "🔬", hint: "Scan 3 case files in one shift." },
+  { id: "panic-artist", name: "Panic artist", icon: "🚨", hint: "Pull the panic lever twice in one shift." }
+];
 
 const scanClues = [
   "Forensic scan reveals the evidence was notarized by a rubber duck.",
@@ -451,6 +478,7 @@ const state = {
   shiftQueue: [],
   shiftMode: "normal",
   redPhoneMode: false,
+  auditWeekMode: false,
   shiftEnded: false,
   verdict: "",
   ripples: [],
@@ -460,17 +488,29 @@ const state = {
   crisisTimerId: null,
   crisisDeadline: 0,
   crisisCaseIndex: -1,
+  auditDrainId: null,
+  fastDecisions: 0,
+  scanCount: 0,
+  hotlineCount: 0,
+  panicCount: 0,
+  setDailyBest: false,
   settings: {
     reducedMotion: false,
     darkDesk: false,
     soundEffects: false,
-    ambientAudio: false
+    ambientAudio: false,
+    clerkName: "Anonymous Clerk",
+    deskTheme: "classic"
   }
 };
 
 let audioCtx = null;
 let ambientNodes = null;
 let pendingInit = false;
+let radioHeadlines = [];
+let radioIndex = 0;
+let radioIntervalId = null;
+let radioTypewriterId = null;
 
 const els = {
   chaos: document.querySelector("#chaosValue"),
@@ -548,7 +588,30 @@ const els = {
   interludeTitle: document.querySelector("#interludeTitle"),
   interludeBody: document.querySelector("#interludeBody"),
   interludeCharacter: document.querySelector("#interludeCharacter"),
-  interludeContinueButton: document.querySelector("#interludeContinueButton")
+  interludeContinueButton: document.querySelector("#interludeContinueButton"),
+  careerButton: document.querySelector("#careerButton"),
+  galleryButton: document.querySelector("#galleryButton"),
+  careerModal: document.querySelector("#careerModal"),
+  careerStatsGrid: document.querySelector("#careerStatsGrid"),
+  careerClerkName: document.querySelector("#careerClerkName"),
+  galleryModal: document.querySelector("#galleryModal"),
+  badgeGallery: document.querySelector("#badgeGallery"),
+  galleryProgress: document.querySelector("#galleryProgress"),
+  radioText: document.querySelector("#radioText"),
+  auditWeekButton: document.querySelector("#auditWeekButton"),
+  auditLabel: document.querySelector("#auditLabel"),
+  settingClerkName: document.querySelector("#settingClerkName"),
+  themeRadios: document.querySelectorAll('input[name="deskTheme"]'),
+  evidenceSketch: document.querySelector("#evidenceSketch"),
+  evidenceSketchLarge: document.querySelector("#evidenceSketchLarge"),
+  sketchModal: document.querySelector("#sketchModal"),
+  sketchCaption: document.querySelector("#sketchCaption"),
+  challengeCodePanel: document.querySelector("#challengeCodePanel"),
+  challengeCodeDisplay: document.querySelector("#challengeCodeDisplay"),
+  copyChallengeButton: document.querySelector("#copyChallengeButton"),
+  challengeLoadInput: document.querySelector("#challengeLoadInput"),
+  loadChallengeButton: document.querySelector("#loadChallengeButton"),
+  challengeCompareResult: document.querySelector("#challengeCompareResult")
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -719,16 +782,448 @@ function applySettings() {
   document.body.classList.toggle("reduced-motion", state.settings.reducedMotion);
   document.body.classList.toggle("dark-desk", state.settings.darkDesk);
 
+  const theme = state.settings.deskTheme || "classic";
+  document.body.dataset.theme = theme;
+  if (theme === "midnight") {
+    document.body.classList.add("dark-desk");
+  }
+
   els.settingReducedMotion.checked = state.settings.reducedMotion;
   els.settingDarkDesk.checked = state.settings.darkDesk;
   els.settingSoundEffects.checked = state.settings.soundEffects;
   els.settingAmbientAudio.checked = state.settings.ambientAudio;
+
+  if (els.settingClerkName) {
+    els.settingClerkName.value = state.settings.clerkName || "Anonymous Clerk";
+  }
+
+  els.themeRadios.forEach((radio) => {
+    radio.checked = radio.value === theme;
+  });
 
   if (state.settings.ambientAudio) {
     startAmbientAudio();
   } else {
     stopAmbientAudio();
   }
+}
+
+function getClerkName() {
+  return (state.settings.clerkName || "Anonymous Clerk").trim() || "Anonymous Clerk";
+}
+
+function defaultCareer() {
+  return {
+    totalShifts: 0,
+    totalStamps: 0,
+    approvals: 0,
+    denials: 0,
+    escalations: 0,
+    bestScore: 0,
+    badgesEarned: []
+  };
+}
+
+function loadCareer() {
+  try {
+    const raw = localStorage.getItem(CAREER_KEY);
+    if (raw) return { ...defaultCareer(), ...JSON.parse(raw) };
+  } catch {
+    /* keep defaults */
+  }
+  return defaultCareer();
+}
+
+function saveCareer(career) {
+  try {
+    localStorage.setItem(CAREER_KEY, JSON.stringify(career));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function badgeById(id) {
+  return BADGE_DEFINITIONS.find((b) => b.id === id);
+}
+
+function badgeNameToId(name) {
+  const found = BADGE_DEFINITIONS.find((b) => b.name === name);
+  return found ? found.id : null;
+}
+
+function getEarnedBadgeIds(careerBadges = []) {
+  const fromCareer = careerBadges
+    .map((name) => badgeNameToId(name))
+    .filter(Boolean);
+  const fromShift = state.badges.map((name) => badgeNameToId(name)).filter(Boolean);
+  return new Set([...fromCareer, ...fromShift]);
+}
+
+function renderCareerModal() {
+  const career = loadCareer();
+  els.careerClerkName.textContent = `Clerk: ${getClerkName()}`;
+  const stats = [
+    ["Total shifts", career.totalShifts],
+    ["Career stamps", career.totalStamps],
+    ["Approvals", career.approvals],
+    ["Denials", career.denials],
+    ["Escalations", career.escalations],
+    ["Best score", career.bestScore],
+    ["Badges earned", career.badgesEarned.length]
+  ];
+
+  els.careerStatsGrid.innerHTML = stats
+    .map(
+      ([label, value]) => `
+      <div class="career-stat">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </div>`
+    )
+    .join("");
+}
+
+function renderBadgeGallery(animateNew = false) {
+  const career = loadCareer();
+  const earned = getEarnedBadgeIds(career.badgesEarned);
+
+  els.galleryProgress.textContent = `${earned.size} of ${BADGE_DEFINITIONS.length} honors unlocked`;
+
+  els.badgeGallery.innerHTML = BADGE_DEFINITIONS.map((badge) => {
+    const isEarned = earned.has(badge.id);
+    const classes = ["badge-card", isEarned ? "is-earned" : "is-locked"];
+    if (animateNew && isEarned && state.badges.includes(badge.name)) {
+      classes.push("is-new-unlock");
+    }
+    return `
+      <article class="${classes.join(" ")}" data-badge="${badge.id}">
+        <span class="badge-icon" aria-hidden="true">${badge.icon}</span>
+        <strong>${badge.name}</strong>
+        <small>${isEarned ? "Unlocked" : badge.hint}</small>
+      </article>`;
+  }).join("");
+}
+
+function updateCareerAfterShift() {
+  const career = loadCareer();
+  const score = computeScore();
+
+  career.totalShifts += 1;
+  career.totalStamps += state.stamps;
+  career.bestScore = Math.max(career.bestScore, score);
+
+  state.shiftLog
+    .filter((e) => e.type === "decision")
+    .forEach((e) => {
+      const key = e.action.toLowerCase();
+      if (key === "approved") career.approvals += 1;
+      if (key === "denied") career.denials += 1;
+      if (key === "escalated") career.escalations += 1;
+    });
+
+  const earnedSet = new Set(career.badgesEarned);
+  state.badges.forEach((name) => earnedSet.add(name));
+  career.badgesEarned = [...earnedSet];
+
+  saveCareer(career);
+}
+
+function generateChallengeCode(score, mode) {
+  const modes = { normal: 0, daily: 1, campaign: 2, audit: 3 };
+  const modeVal = modes[mode] || 0;
+  const day = hashString(todayKey()) % 1296;
+  let packed = (score * 4 + modeVal) * 1296 + day;
+
+  let code = "";
+  for (let i = 0; i < 6; i += 1) {
+    code = CHALLENGE_CHARSET[packed % 32] + code;
+    packed = Math.floor(packed / 32);
+  }
+  return code;
+}
+
+function decodeChallengeCode(code) {
+  const cleaned = (code || "").trim().toUpperCase().replace(/[^0-9A-Z]/g, "");
+  if (cleaned.length !== 6) return null;
+
+  let packed = 0;
+  for (let i = 0; i < 6; i += 1) {
+    const idx = CHALLENGE_CHARSET.indexOf(cleaned[i]);
+    if (idx < 0) return null;
+    packed = packed * 32 + idx;
+  }
+
+  const day = packed % 1296;
+  const temp = Math.floor(packed / 1296);
+  const modeVal = temp % 4;
+  const score = Math.floor(temp / 4);
+  const modeMap = ["normal", "daily", "campaign", "audit"];
+
+  return { score, mode: modeMap[modeVal] || "normal", day };
+}
+
+function showChallengeCode() {
+  const mode = state.auditWeekMode ? "audit" : state.shiftMode;
+  const code = generateChallengeCode(computeScore(), mode);
+  els.challengeCodeDisplay.textContent = code;
+  els.challengeCodePanel.hidden = false;
+}
+
+function compareChallengeCode(inputCode) {
+  const decoded = decodeChallengeCode(inputCode);
+  if (!decoded) {
+    return { ok: false, message: "Invalid challenge code. Bureau requires exactly 6 characters." };
+  }
+
+  const yourScore = computeScore();
+  const diff = yourScore - decoded.score;
+  const modeLabel = decoded.mode.charAt(0).toUpperCase() + decoded.mode.slice(1);
+
+  if (diff > 0) {
+    return {
+      ok: true,
+      win: true,
+      message: `You beat the challenge by ${diff} points! Target was ${decoded.score} (${modeLabel} mode).`
+    };
+  }
+  if (diff === 0) {
+    return {
+      ok: true,
+      win: true,
+      message: `Exact tie at ${decoded.score} points. The bureau is impressed and confused.`
+    };
+  }
+  return {
+    ok: true,
+    win: false,
+    message: `Challenge score ${decoded.score} (${modeLabel}) beats your ${yourScore} by ${Math.abs(diff)} points. Stamp harder.`
+  };
+}
+
+function drawEvidenceSketch(canvas, seed, size = 72) {
+  if (!canvas) return;
+  const ctx2d = canvas.getContext("2d");
+  canvas.width = size;
+  canvas.height = size;
+  ctx2d.clearRect(0, 0, size, size);
+
+  const isDark =
+    document.body.classList.contains("dark-desk") || state.settings.deskTheme === "midnight";
+  ctx2d.fillStyle = isDark ? "#121a28" : "#fffdf7";
+  ctx2d.fillRect(0, 0, size, size);
+  ctx2d.strokeStyle = isDark ? "#4a5a72" : "#231f20";
+  ctx2d.lineWidth = Math.max(1, size / 36);
+  ctx2d.strokeRect(2, 2, size - 4, size - 4);
+
+  const colors = ["#39b78f", "#f05f4b", "#f8c94a", "#3f7ad6", "#7350a8"];
+  const shapeCount = 3 + Math.floor(seededRandom(seed) * 4);
+
+  for (let i = 0; i < shapeCount; i += 1) {
+    const s = seed + i * 31;
+    const color = colors[Math.floor(seededRandom(s) * colors.length)];
+    const x = 8 + seededRandom(s + 1) * (size - 24);
+    const y = 8 + seededRandom(s + 2) * (size - 24);
+    const w = 10 + seededRandom(s + 3) * (size * 0.35);
+    const h = 10 + seededRandom(s + 4) * (size * 0.35);
+    const kind = Math.floor(seededRandom(s + 5) * 4);
+
+    ctx2d.fillStyle = color;
+    ctx2d.strokeStyle = isDark ? "#e8edf5" : "#231f20";
+    ctx2d.lineWidth = Math.max(1, size / 48);
+
+    if (kind === 0) {
+      ctx2d.beginPath();
+      ctx2d.arc(x + w / 2, y + h / 2, w / 2, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.stroke();
+    } else if (kind === 1) {
+      ctx2d.fillRect(x, y, w, h);
+      ctx2d.strokeRect(x, y, w, h);
+    } else if (kind === 2) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(x + w / 2, y);
+      ctx2d.lineTo(x + w, y + h);
+      ctx2d.lineTo(x, y + h);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+    } else {
+      ctx2d.beginPath();
+      ctx2d.moveTo(x, y + h / 2);
+      ctx2d.lineTo(x + w / 2, y);
+      ctx2d.lineTo(x + w, y + h / 2);
+      ctx2d.lineTo(x + w / 2, y + h);
+      ctx2d.closePath();
+      ctx2d.fill();
+      ctx2d.stroke();
+    }
+  }
+
+  ctx2d.fillStyle = isDark ? "#9aa8bc" : "#596274";
+  ctx2d.font = `bold ${Math.max(7, size / 10)}px Inter, sans-serif`;
+  ctx2d.fillText("EXHIBIT", 6, size - 6);
+}
+
+function openEvidenceSketch() {
+  const item = currentCase();
+  if (!item) return;
+
+  const seed = hashString(`${item.title}-${item.citizen}`);
+  drawEvidenceSketch(els.evidenceSketchLarge, seed, 320);
+  els.sketchCaption.textContent = item.evidence;
+  openModal(els.sketchModal);
+  playSound("click");
+}
+
+function getEffectiveRisk(item) {
+  if (!item) return 0;
+  return clamp(item.risk + (state.auditWeekMode ? 15 : 0), 0, 99);
+}
+
+function startAuditDrain() {
+  stopAuditDrain();
+  if (!state.auditWeekMode || state.shiftEnded) return;
+
+  state.auditDrainId = setInterval(() => {
+    if (state.shiftEnded || !state.auditWeekMode) {
+      stopAuditDrain();
+      return;
+    }
+    state.forms = clamp(state.forms - 1, 0, 99);
+    state.chaos = clamp(state.chaos + 1, 0, 99);
+    renderStats();
+    if (state.forms <= 5) {
+      addLog("Audit Week: forms draining. Triplicate panic imminent.");
+    }
+  }, AUDIT_DRAIN_MS);
+}
+
+function stopAuditDrain() {
+  if (state.auditDrainId) {
+    clearInterval(state.auditDrainId);
+    state.auditDrainId = null;
+  }
+}
+
+function buildRadioHeadlines() {
+  const headlines = [];
+  const chaos = state.chaos;
+  const morale = state.morale;
+  const act =
+    state.shiftMode === "campaign"
+      ? getCampaignAct(loadCampaignState().shiftsCompleted)
+      : null;
+
+  if (chaos >= 75) {
+    headlines.push("BREAKING: City chaos index exceeds laminated tolerance thresholds.");
+  } else if (chaos >= 50) {
+    headlines.push(`City chaos at ${chaos}% — citizens report mild structural sighing.`);
+  } else {
+    headlines.push(`Bureau bulletin: chaos holding at ${chaos}%. Suspiciously calm.`);
+  }
+
+  if (morale < 40) {
+    headlines.push("Morale desk reports collective desire to become a fern.");
+  } else if (morale >= 70) {
+    headlines.push("Morale surplus detected. Someone may smile without permission.");
+  }
+
+  if (act) {
+    headlines.push(`Campaign wire: Act ${act} developments monitored by Senior Vibes.`);
+  }
+
+  if (state.auditWeekMode) {
+    headlines.push("AUDIT ALERT: Form reserves depleting. Inspectors admire your stapler.");
+  }
+
+  if (state.redPhoneMode) {
+    headlines.push("Red Phone network active. Hold music replaced with urgent beeping.");
+  }
+
+  state.ripples.slice(-3).forEach((r) => {
+    const text = rippleModifiers[r.tag];
+    if (text) headlines.push(text.replace("Ripple effect: ", "Ripple report: "));
+  });
+
+  const recent = state.shiftLog.filter((e) => e.type === "decision").slice(-2);
+  recent.forEach((entry) => {
+    headlines.push(
+      `Desk update: Case ${String(entry.caseNum).padStart(4, "0")} ${entry.action.toLowerCase()} — ${shorten(entry.title, 36)}`
+    );
+  });
+
+  if (!headlines.length) {
+    headlines.push("Bureau Radio online. Awaiting administratively newsworthy events.");
+  }
+
+  return headlines;
+}
+
+function typeRadioHeadline(text) {
+  if (!els.radioText) return;
+
+  if (radioTypewriterId) {
+    clearInterval(radioTypewriterId);
+    radioTypewriterId = null;
+  }
+
+  els.radioText.textContent = "";
+  els.radioText.classList.add("is-typing");
+
+  let i = 0;
+  const step = state.settings.reducedMotion ? text.length : 1;
+  const delay = state.settings.reducedMotion ? 0 : 28;
+
+  const tick = () => {
+    if (i >= text.length) {
+      els.radioText.classList.remove("is-typing");
+      if (radioTypewriterId) clearInterval(radioTypewriterId);
+      radioTypewriterId = null;
+      return;
+    }
+    els.radioText.textContent += text.slice(i, i + step);
+    i += step;
+  };
+
+  if (delay === 0) {
+    els.radioText.textContent = text;
+    els.radioText.classList.remove("is-typing");
+    return;
+  }
+
+  tick();
+  radioTypewriterId = setInterval(tick, delay);
+}
+
+function rotateRadio() {
+  radioHeadlines = buildRadioHeadlines();
+  if (!radioHeadlines.length) return;
+  radioIndex = radioIndex % radioHeadlines.length;
+  typeRadioHeadline(radioHeadlines[radioIndex]);
+  radioIndex = (radioIndex + 1) % radioHeadlines.length;
+}
+
+function startBureauRadio() {
+  stopBureauRadio();
+  rotateRadio();
+  radioIntervalId = setInterval(rotateRadio, RADIO_ROTATE_MS);
+}
+
+function stopBureauRadio() {
+  if (radioIntervalId) {
+    clearInterval(radioIntervalId);
+    radioIntervalId = null;
+  }
+  if (radioTypewriterId) {
+    clearInterval(radioTypewriterId);
+    radioTypewriterId = null;
+  }
+}
+
+function refreshRadioSoon() {
+  radioHeadlines = buildRadioHeadlines();
+  radioIndex = 0;
+  rotateRadio();
 }
 
 function initAudio() {
@@ -870,6 +1365,7 @@ function computeVerdict() {
 
 function awardBadges() {
   const earned = new Set(state.badges);
+  const career = loadCareer();
 
   if (state.stamps >= 1) earned.add("First stamp");
   if (state.coffee >= 3) earned.add("Caffeine liaison");
@@ -885,6 +1381,19 @@ function awardBadges() {
   if (avgJournal >= 80) earned.add("Silver Tongue");
 
   if (state.redPhoneMode && state.shiftEnded && state.chaos < 70) earned.add("Crisis coolhead");
+  if (state.auditWeekMode && state.shiftEnded) earned.add("Survived Audit Week");
+  if (state.fastDecisions >= 3) earned.add("Speed demon");
+  if (state.ripples.length >= 5) earned.add("Ripple architect");
+  if (state.hotlineCount >= 5) earned.add("Hotline hero");
+  if (state.scanCount >= 3) earned.add("Scanner specialist");
+  if (state.panicCount >= 2) earned.add("Panic artist");
+  if (state.setDailyBest) earned.add("Daily champion");
+
+  if (career.totalShifts >= 10) earned.add("Bureau veteran");
+  if (career.totalStamps >= 100) earned.add("Stamp collector");
+
+  const campaign = loadCampaignState();
+  if (campaign.completed) earned.add("Campaign survivor");
 
   state.badges = [...earned];
 }
@@ -1300,7 +1809,7 @@ function downloadCertificatePng() {
   c.font = `700 ${11 * scale}px Inter, sans-serif`;
   c.fillStyle = isDark ? "#9aa8bc" : "#596274";
   const dateStr = new Date().toLocaleDateString();
-  c.fillText(`Bureau of Tiny Emergencies — ${dateStr}`, 28 * scale, height - 24 * scale);
+  c.fillText(`Certified by ${getClerkName()} — ${dateStr}`, 28 * scale, height - 24 * scale);
 
   offscreen.toBlob((blob) => {
     if (!blob) {
@@ -1353,6 +1862,8 @@ function updateDailyUI() {
   }
   updateCampaignUI();
   els.redPhoneButton.classList.toggle("is-active", state.redPhoneMode);
+  els.auditWeekButton.classList.toggle("is-active", state.auditWeekMode);
+  els.auditLabel.hidden = !state.auditWeekMode;
 }
 
 function saveShiftState() {
@@ -1373,6 +1884,11 @@ function saveShiftState() {
       shiftQueue: state.shiftQueue,
       shiftMode: state.shiftMode,
       redPhoneMode: state.redPhoneMode,
+      auditWeekMode: state.auditWeekMode,
+      fastDecisions: state.fastDecisions,
+      scanCount: state.scanCount,
+      hotlineCount: state.hotlineCount,
+      panicCount: state.panicCount,
       ripples: state.ripples,
       journalScores: state.journalScores,
       certificateText: state.certificateText,
@@ -1422,6 +1938,11 @@ function restoreShiftState(saved) {
   state.shiftQueue = saved.shiftQueue || buildShiftQueue(saved.shiftMode || "normal");
   state.shiftMode = saved.shiftMode || "normal";
   state.redPhoneMode = saved.redPhoneMode || false;
+  state.auditWeekMode = saved.auditWeekMode || false;
+  state.fastDecisions = saved.fastDecisions || 0;
+  state.scanCount = saved.scanCount || 0;
+  state.hotlineCount = saved.hotlineCount || 0;
+  state.panicCount = saved.panicCount || 0;
   state.ripples = saved.ripples || [];
   state.journalScores = saved.journalScores || [];
   state.certificateText = saved.certificateText || "";
@@ -1439,6 +1960,8 @@ function restoreShiftState(saved) {
   } else {
     els.shiftEndPanel.hidden = true;
     startCrisisTimer();
+    startAuditDrain();
+    refreshRadioSoon();
   }
 }
 
@@ -1471,6 +1994,11 @@ function startShift(mode = "normal", options = {}) {
   state.journalScores = [];
   state.lastJournalScore = 0;
   state.ripplePulses = [];
+  state.fastDecisions = 0;
+  state.scanCount = 0;
+  state.hotlineCount = 0;
+  state.panicCount = 0;
+  state.setDailyBest = false;
 
   if (mode === "campaign") {
     const c = loadCampaignState();
@@ -1495,11 +2023,15 @@ function startShift(mode = "normal", options = {}) {
   setShiftControlsEnabled(true);
   els.shiftEndPanel.hidden = true;
   els.campaignContinueButton.hidden = true;
+  if (els.challengeCodePanel) els.challengeCodePanel.hidden = true;
+  if (els.challengeCompareResult) els.challengeCompareResult.hidden = true;
   els.log.innerHTML = "";
   renderStats();
   renderCase();
   showGhostNote();
   startCrisisTimer();
+  startAuditDrain();
+  refreshRadioSoon();
 
   const openMessages = {
     daily: "Daily desk opened. Fate has been seeded.",
@@ -1509,6 +2041,7 @@ function startShift(mode = "normal", options = {}) {
   addLog(openMessages[mode] || openMessages.normal);
 
   if (state.redPhoneMode) addLog("Red Phone Shift active. Fifteen seconds per case.");
+  if (state.auditWeekMode) addLog("Audit Week engaged. Forms drain every 10 seconds.");
 
   els.ticker.textContent = "Awaiting paperwork weather.";
   renderCertificate("Pending Stamp", "No nonsense has been certified yet.", "Choose a decision and the bureau will manufacture confidence.");
@@ -1533,8 +2066,14 @@ function renderCase() {
   els.caseSummary.textContent = item.summary;
   els.caseCitizen.textContent = item.citizen;
   els.caseEvidence.textContent = item.evidence;
-  els.riskFill.style.width = `${item.risk}%`;
-  els.riskLabel.textContent = riskName(item.risk);
+  const effectiveRisk = getEffectiveRisk(item);
+  els.riskFill.style.width = `${effectiveRisk}%`;
+  els.riskLabel.textContent = state.auditWeekMode
+    ? `${riskName(effectiveRisk)} (+15 audit)`
+    : riskName(effectiveRisk);
+
+  const sketchSeed = hashString(`${item.title}-${item.citizen}`);
+  drawEvidenceSketch(els.evidenceSketch, sketchSeed, 72);
 
   const rippleText = getRippleModifierText();
   if (rippleText) {
@@ -1615,9 +2154,10 @@ function decide(action, options = {}) {
 
   if (state.redPhoneMode && !options.timedOut) {
     const elapsed = RED_PHONE_TIMEOUT_MS - (state.crisisDeadline - Date.now());
-    const best = bestActionForRisk(item.risk);
+    const best = bestActionForRisk(getEffectiveRisk(item));
     if (elapsed <= RED_PHONE_FAST_MS && action === best) {
       state.stamps += 1;
+      state.fastDecisions += 1;
       state.chaos = clamp(state.chaos - 5, 0, 99);
       addLog("Red Phone bonus: fast correct decision. Extra stamp awarded.");
     }
@@ -1650,6 +2190,7 @@ function decide(action, options = {}) {
   renderCertificate(tone.label, item.title, result, journalScore);
   addLog(logLine);
   els.ticker.textContent = tickerFor(action, item.title);
+  refreshRadioSoon();
   pulseStamp();
   spawnPapers(action);
   playSound(action);
@@ -1669,17 +2210,25 @@ function decide(action, options = {}) {
 
 function endShift() {
   stopCrisisTimer();
+  stopAuditDrain();
   state.shiftEnded = true;
   state.verdict = computeVerdict();
   awardBadges();
+  updateCareerAfterShift();
+  awardBadges();
+  const career = loadCareer();
+  career.badgesEarned = [...new Set([...career.badgesEarned, ...state.badges])];
+  saveCareer(career);
   clearShiftState();
   setShiftControlsEnabled(false);
   showShiftEnd();
   saveDailyBest();
   submitLeaderboardScore();
   renderLeaderboard();
+  showChallengeCode();
   addLog(`Shift complete: ${state.verdict}`);
   els.ticker.textContent = `Shift closed — ${state.verdict}`;
+  refreshRadioSoon();
 
   if (state.shiftMode === "campaign") {
     const hasMore = advanceCampaignAfterShift();
@@ -1725,6 +2274,8 @@ function saveDailyBest() {
         savedAt: Date.now()
       };
       localStorage.setItem(DAILY_BEST_KEY, JSON.stringify(bests));
+      state.setDailyBest = true;
+      awardBadges();
       addLog(`New daily best: ${score} points.`);
     }
   } catch {
@@ -1794,7 +2345,7 @@ function isSupabaseEnabled() {
 
 async function submitLeaderboardScore() {
   const entry = {
-    player_name: "Anonymous Clerk",
+    player_name: getClerkName(),
     rank_title: rankName(),
     stamps: state.stamps,
     chaos: state.chaos,
@@ -1899,6 +2450,7 @@ function renderCertificate(kicker, title, body, journalScore = 0) {
     <p class="cert-title">${title}</p>
     <p class="cert-body">${body}</p>
     ${eloquenceHtml}
+    <p class="cert-clerk">Certified by ${getClerkName()}, Bureau of Tiny Emergencies</p>
   `;
 }
 
@@ -1961,6 +2513,9 @@ function scanCase() {
   const item = currentCase();
   if (!item) return;
 
+  state.scanCount += 1;
+  awardBadges();
+
   const clue = scanClues[randomInt(0, scanClues.length - 1)];
   state.chaos = clamp(state.chaos + randomInt(-2, 3), 0, 99);
   state.forms = clamp(state.forms + randomInt(1, 4), 0, 99);
@@ -1973,6 +2528,7 @@ function scanCase() {
   });
 
   els.ticker.textContent = `${item.title}: ${clue}`;
+  refreshRadioSoon();
   addLog(`Scanned case ${String(state.index + 1).padStart(4, "0")}: new clue logged.`);
   playSound("scan");
   renderStats();
@@ -2004,6 +2560,9 @@ function coffeeBreak() {
 function callHotline() {
   if (state.shiftEnded) return;
 
+  state.hotlineCount += 1;
+  awardBadges();
+
   const advice = hotlineAdvice[randomInt(0, hotlineAdvice.length - 1)];
   state.morale = clamp(state.morale + randomInt(-1, 5), 0, 99);
   state.forms = clamp(state.forms + randomInt(0, 3), 0, 99);
@@ -2018,6 +2577,9 @@ function callHotline() {
 
 function panic() {
   if (state.shiftEnded) return;
+
+  state.panicCount += 1;
+  awardBadges();
 
   state.chaos = clamp(state.chaos + randomInt(7, 14), 0, 99);
   state.morale = clamp(state.morale + randomInt(-6, 5), 0, 99);
@@ -2174,6 +2736,9 @@ function closeAllOverlays() {
   closeModal(els.tutorialModal);
   closeModal(els.resumeModal);
   closeModal(els.campaignInterludeModal);
+  closeModal(els.careerModal);
+  closeModal(els.galleryModal);
+  closeModal(els.sketchModal);
   els.districtPopup.hidden = true;
 }
 
@@ -2328,7 +2893,10 @@ function handleKeyboard(event) {
     !els.settingsDrawer.hidden ||
     !els.helpModal.hidden ||
     !els.resumeModal.hidden ||
-    !els.campaignInterludeModal.hidden
+    !els.campaignInterludeModal.hidden ||
+    !els.careerModal.hidden ||
+    !els.galleryModal.hidden ||
+    !els.sketchModal.hidden
   ) {
     if (key === "?") {
       event.preventDefault();
@@ -2719,6 +3287,11 @@ els.settingReducedMotion.addEventListener("change", (e) => {
 
 els.settingDarkDesk.addEventListener("change", (e) => {
   state.settings.darkDesk = e.target.checked;
+  if (e.target.checked) {
+    state.settings.deskTheme = "midnight";
+  } else if (state.settings.deskTheme === "midnight") {
+    state.settings.deskTheme = "classic";
+  }
   saveSettings();
   applySettings();
 });
@@ -2748,9 +3321,106 @@ document.querySelectorAll("[data-close-modal]").forEach((el) => {
       dismissTutorial();
     } else if (target === "help") {
       closeModal(els.helpModal);
+    } else if (target === "career") {
+      closeModal(els.careerModal);
+    } else if (target === "gallery") {
+      closeModal(els.galleryModal);
+    } else if (target === "sketch") {
+      closeModal(els.sketchModal);
     }
   });
 });
+
+els.careerButton.addEventListener("click", () => {
+  renderCareerModal();
+  openModal(els.careerModal);
+  playSound("click");
+});
+
+els.galleryButton.addEventListener("click", () => {
+  renderBadgeGallery();
+  openModal(els.galleryModal);
+  playSound("click");
+});
+
+if (els.evidenceSketch) {
+  els.evidenceSketch.addEventListener("click", openEvidenceSketch);
+  els.evidenceSketch.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openEvidenceSketch();
+    }
+  });
+}
+
+els.auditWeekButton.addEventListener("click", () => {
+  state.auditWeekMode = !state.auditWeekMode;
+  updateDailyUI();
+  if (state.auditWeekMode) {
+    addLog("Audit Week engaged. Forms drain every 10 seconds. All cases +15 risk.");
+    startAuditDrain();
+    renderCase();
+  } else {
+    stopAuditDrain();
+    addLog("Audit Week disengaged. Inspectors have been bribed with coffee.");
+    renderCase();
+  }
+  refreshRadioSoon();
+  if (!state.shiftEnded) saveShiftState();
+});
+
+if (els.settingClerkName) {
+  els.settingClerkName.addEventListener("change", (e) => {
+    state.settings.clerkName = e.target.value.trim() || "Anonymous Clerk";
+    saveSettings();
+  });
+  els.settingClerkName.addEventListener("blur", (e) => {
+    state.settings.clerkName = e.target.value.trim() || "Anonymous Clerk";
+    saveSettings();
+  });
+}
+
+els.themeRadios.forEach((radio) => {
+  radio.addEventListener("change", (e) => {
+    if (!e.target.checked) return;
+    state.settings.deskTheme = e.target.value;
+    if (DESK_THEMES.includes(state.settings.deskTheme)) {
+      state.settings.darkDesk = state.settings.deskTheme === "midnight";
+      els.settingDarkDesk.checked = state.settings.darkDesk;
+    }
+    saveSettings();
+    applySettings();
+    const item = currentCase();
+    if (item) {
+      drawEvidenceSketch(els.evidenceSketch, hashString(`${item.title}-${item.citizen}`), 72);
+    }
+    playSound("click");
+  });
+});
+
+if (els.copyChallengeButton) {
+  els.copyChallengeButton.addEventListener("click", async () => {
+    const code = els.challengeCodeDisplay.textContent;
+    await copyText(code, "Challenge code copied to clipboard.");
+    playSound("click");
+  });
+}
+
+if (els.loadChallengeButton) {
+  els.loadChallengeButton.addEventListener("click", () => {
+    const result = compareChallengeCode(els.challengeLoadInput.value);
+    els.challengeCompareResult.hidden = false;
+    if (!result.ok) {
+      els.challengeCompareResult.textContent = result.message;
+      els.challengeCompareResult.classList.remove("is-win", "is-lose");
+      return;
+    }
+    els.challengeCompareResult.textContent = result.message;
+    els.challengeCompareResult.classList.toggle("is-win", result.win);
+    els.challengeCompareResult.classList.toggle("is-lose", !result.win);
+    playSound(result.win ? "approve" : "deny");
+  });
+}
 
 document.addEventListener("keydown", handleKeyboard);
 window.addEventListener("resize", resizeCanvas);
@@ -2762,4 +3432,5 @@ loadSettings();
 applySettings();
 resizeCanvas();
 requestAnimationFrame(drawCity);
+startBureauRadio();
 offerResumeShift();

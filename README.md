@@ -6,6 +6,13 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 
 ## Features
 
+- **Career stats dashboard** — Lifetime shifts, stamps, decisions, best score, and badges (`bureau-career-v1`)
+- **Achievement gallery** — 18 unlockable honors with hints; full-screen grid with animations
+- **Bureau Radio** — Rotating news headlines with typewriter effect (ripples, chaos, campaign, decisions)
+- **Desk customization** — Clerk name on certificates; four theme presets (Classic, Midnight, Mint, Sunbleached)
+- **Audit Week hard mode** — Forms drain every 10s, +15 case risk, rising chaos; survival badge
+- **Challenge codes** — 6-character shareable codes at shift end; load a friend's code to compare scores
+- **Evidence sketch viewer** — Procedural per-case doodle canvas; click to enlarge
 - **12 absurd case files** plus **2–3 procedural cases** per shift with unique outcomes
 - **Campaign mode — Season 1: The Paperwork Uprising** — 6-shift narrative with 3 acts, recurring characters, ratio-based interludes, and act-exclusive cases
 - **Decision ripples** — Past stamps tag the world; later cases gain dynamic summary modifiers and city pulse animations
@@ -55,6 +62,26 @@ Click districts on the city canvas for localized chaos reports.
 | **Campaign** | Season 1 story across 6 shifts; progress saved in `bureau-campaign-v1` |
 | **Daily desk** | Today's seeded case order with local best-score tracking |
 | **Red Phone** | Overlay: 15s timer per case (toggle anytime) |
+| **Audit Week** | Overlay: forms drain, +15 risk, slow chaos rise (toggle anytime) |
+
+## Career & achievements
+
+Click the **dossier** icon in the top bar for lifetime stats. Click the **★** icon for the achievement gallery. Badges unlock during play and persist in your career record. At least 18 honors are available, including shift feats (Silver Tongue, Speed demon) and career milestones (Bureau veteran, Stamp collector).
+
+## Challenge codes
+
+When a shift ends, a 6-character challenge code appears. Share it with a friend; they can paste it into **Load a friend's challenge** on their shift-end screen to see if they beat your score.
+
+## Desk themes
+
+Open **Settings** to set your clerk name and pick a desk theme:
+
+| Theme | Vibe |
+|-------|------|
+| **Classic** | Default bureau paperwork warmth |
+| **Midnight** | Dark late-shift ambiance |
+| **Mint** | Cool green administrative calm |
+| **Sunbleached** | Faded afternoon ledger tones |
 
 ## Files
 
@@ -81,8 +108,10 @@ Then visit `http://localhost:5173`.
 
 Click the gear icon in the top bar to open the settings drawer:
 
+- **Clerk name** — Printed on certificates and filed with leaderboard scores
+- **Desk theme** — Classic, Midnight, Mint, or Sunbleached presets
 - **Reduced motion** — Calms stamp animations and city wobble
-- **Dark desk theme** — Late-shift paperwork ambiance
+- **Dark desk theme** — Legacy toggle (syncs with Midnight preset)
 - **Sound effects** — Web Audio beeps for stamps, decisions, and desk tools
 - **Ambient desk hum** — Low looping office atmosphere (separate from sound effects)
 
@@ -115,7 +144,7 @@ Each shift processes a queue of base cases plus procedurally generated emergenci
 
 1. A verdict and score are calculated
 2. Scores are saved locally (and to Supabase if configured)
-3. You can leave a **ghost note**, **Share shift**, **Export shift summary**, **Download certificate PNG**, or **Start new shift**
+3. You can copy a **challenge code**, leave a **ghost note**, **Share shift**, **Export shift summary**, **Download certificate PNG**, or **Start new shift**
 4. In Campaign mode, continue through interludes until Season 1 concludes
 
 Progress is auto-saved after every decision so you can resume within 24 hours.

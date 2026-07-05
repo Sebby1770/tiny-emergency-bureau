@@ -57,7 +57,11 @@
           <button id="redPhoneButton" class="mode-button mode-button-crisis" type="button" title="15-second crisis timers">
             Red Phone
           </button>
+          <button id="auditWeekButton" class="mode-button mode-button-audit" type="button" title="Hard mode: forms drain, risk rises">
+            Audit Week
+          </button>
           <span id="dailyLabel" class="daily-label" hidden>Daily Challenge</span>
+          <span id="auditLabel" class="daily-label audit-label" hidden>Audit Week</span>
           <span id="campaignLabel" class="daily-label campaign-label" hidden>Season 1</span>
         </div>
 
@@ -72,6 +76,28 @@
         </div>
 
         <div class="topbar-actions">
+          <button
+            id="careerButton"
+            class="icon-button"
+            type="button"
+            aria-label="Career stats"
+            aria-haspopup="dialog"
+            aria-controls="careerModal"
+            title="Career stats"
+          >
+            <span class="career-icon" aria-hidden="true"></span>
+          </button>
+          <button
+            id="galleryButton"
+            class="icon-button"
+            type="button"
+            aria-label="Achievement gallery"
+            aria-haspopup="dialog"
+            aria-controls="galleryModal"
+            title="Achievement gallery"
+          >
+            <span class="gallery-icon" aria-hidden="true">★</span>
+          </button>
           <button
             id="helpButton"
             class="icon-button"
@@ -147,7 +173,21 @@
             </div>
             <div>
               <dt>Evidence</dt>
-              <dd id="caseEvidence">-</dd>
+              <dd>
+                <div class="evidence-row">
+                  <canvas
+                    id="evidenceSketch"
+                    class="evidence-sketch"
+                    width="72"
+                    height="72"
+                    role="button"
+                    tabindex="0"
+                    aria-label="View evidence sketch — click to enlarge"
+                    title="Click to enlarge evidence sketch"
+                  ></canvas>
+                  <span id="caseEvidence">-</span>
+                </div>
+              </dd>
             </div>
           </dl>
 
@@ -264,6 +304,11 @@
             <div id="stampFlash" class="stamp-flash" aria-hidden="true">FILED</div>
           </div>
 
+          <div class="bureau-radio" aria-label="Bureau radio news">
+            <span class="radio-label" aria-hidden="true">BUREAU RADIO</span>
+            <span id="radioText" class="radio-text" aria-live="polite"></span>
+          </div>
+
           <div class="ticker" aria-label="Bureau bulletin">
             <span id="tickerText">Awaiting paperwork weather.</span>
           </div>
@@ -318,6 +363,32 @@
                 maxlength="200"
               ></textarea>
             </label>
+            <div id="challengeCodePanel" class="challenge-code-panel" hidden>
+              <p class="eyebrow">Challenge code</p>
+              <p id="challengeCodeDisplay" class="challenge-code-display" aria-live="polite"></p>
+              <button id="copyChallengeButton" class="copy-button challenge-copy" type="button">
+                Copy challenge code
+              </button>
+            </div>
+
+            <div class="challenge-load-panel">
+              <label class="challenge-load-label" for="challengeLoadInput">
+                <span class="eyebrow">Load a friend's challenge</span>
+                <div class="challenge-load-row">
+                  <input
+                    id="challengeLoadInput"
+                    type="text"
+                    maxlength="6"
+                    placeholder="ABC123"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <button id="loadChallengeButton" class="tool-button" type="button">Compare</button>
+                </div>
+              </label>
+              <p id="challengeCompareResult" class="challenge-compare-result" hidden></p>
+            </div>
+
             <div class="shift-end-actions">
               <button id="newShiftButton" class="modal-button" type="button">Start new shift</button>
               <button id="campaignContinueButton" class="modal-button modal-button-secondary" type="button" hidden>
@@ -366,6 +437,36 @@
         </header>
 
         <div class="settings-list">
+          <label class="setting-row setting-row-input">
+            <span>
+              <strong>Clerk name</strong>
+              <small>Printed on certificates and career records</small>
+            </span>
+            <input id="settingClerkName" type="text" maxlength="32" placeholder="Anonymous Clerk" />
+          </label>
+
+          <fieldset class="theme-fieldset">
+            <legend class="eyebrow">Desk theme</legend>
+            <div class="theme-preset-grid" role="radiogroup" aria-label="Desk theme presets">
+              <label class="theme-preset">
+                <input type="radio" name="deskTheme" value="classic" checked />
+                <span>Classic</span>
+              </label>
+              <label class="theme-preset">
+                <input type="radio" name="deskTheme" value="midnight" />
+                <span>Midnight</span>
+              </label>
+              <label class="theme-preset">
+                <input type="radio" name="deskTheme" value="mint" />
+                <span>Mint</span>
+              </label>
+              <label class="theme-preset">
+                <input type="radio" name="deskTheme" value="sunbleached" />
+                <span>Sunbleached</span>
+              </label>
+            </div>
+          </fieldset>
+
           <label class="setting-row">
             <span>
               <strong>Reduced motion</strong>
@@ -377,7 +478,7 @@
           <label class="setting-row">
             <span>
               <strong>Dark desk theme</strong>
-              <small>Late-shift paperwork ambiance</small>
+              <small>Late-shift paperwork ambiance (legacy toggle)</small>
             </span>
             <input id="settingDarkDesk" type="checkbox" />
           </label>
@@ -467,6 +568,68 @@
         <p id="interludeBody"></p>
         <p id="interludeCharacter" class="interlude-character"></p>
         <button id="interludeContinueButton" class="modal-button" type="button">Return to desk</button>
+      </div>
+    </div>
+
+    <!-- Career stats modal -->
+    <div
+      id="careerModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="careerTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop" data-close-modal="career"></div>
+      <div class="modal-panel modal-panel-wide">
+        <h2 id="careerTitle">Career dossier</h2>
+        <p id="careerClerkName" class="career-clerk-name"></p>
+        <div id="careerStatsGrid" class="career-stats-grid"></div>
+        <p class="modal-note">Lifetime stats persist in your browser (`bureau-career-v1`).</p>
+        <button class="modal-button" type="button" data-close-modal="career">Back to desk</button>
+      </div>
+    </div>
+
+    <!-- Achievement gallery modal -->
+    <div
+      id="galleryModal"
+      class="modal modal-fullscreen"
+      role="dialog"
+      aria-labelledby="galleryTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop" data-close-modal="gallery"></div>
+      <div class="modal-panel modal-panel-gallery">
+        <header class="gallery-header">
+          <div>
+            <p class="eyebrow">Bureau honors</p>
+            <h2 id="galleryTitle">Achievement gallery</h2>
+          </div>
+          <button class="icon-button drawer-close" type="button" aria-label="Close gallery" data-close-modal="gallery">
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+        <p id="galleryProgress" class="gallery-progress"></p>
+        <div id="badgeGallery" class="badge-gallery"></div>
+      </div>
+    </div>
+
+    <!-- Evidence sketch lightbox -->
+    <div
+      id="sketchModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="sketchTitle"
+      aria-modal="true"
+      hidden
+    >
+      <div class="modal-backdrop" data-close-modal="sketch"></div>
+      <div class="modal-panel modal-panel-sketch">
+        <h2 id="sketchTitle">Evidence sketch</h2>
+        <canvas id="evidenceSketchLarge" width="320" height="320" aria-label="Enlarged evidence sketch"></canvas>
+        <p id="sketchCaption" class="sketch-caption"></p>
+        <button class="modal-button" type="button" data-close-modal="sketch">Close sketch</button>
       </div>
     </div>
 
