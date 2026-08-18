@@ -259,6 +259,8 @@ const BADGE_DEFINITIONS = [
   { id: "speed-demon", name: "Speed demon", icon: "⚡", hint: "Make 3 fast correct Red Phone calls in one shift." },
   { id: "bureau-veteran", name: "Bureau veteran", icon: "🏛️", hint: "Complete 10 career shifts." },
   { id: "stamp-collector", name: "Stamp collector", icon: "🗂️", hint: "Earn 100 career stamps." },
+  { id: "night-owl", name: "Night owl", icon: "🌙", hint: "Finish a Night Shift with the lamps still buzzing." },
+  { id: "unstamper", name: "Unstamper", icon: "↩️", hint: "Undo a stamp before the ink dries." },
   { id: "daily-champion", name: "Daily champion", icon: "📅", hint: "Set a new daily best score." },
   { id: "campaign-survivor", name: "Campaign survivor", icon: "📜", hint: "Finish Season 1: The Paperwork Uprising." },
   { id: "ripple-architect", name: "Ripple architect", icon: "🌊", hint: "Trigger 5+ decision ripples in one shift." },
@@ -479,6 +481,10 @@ const state = {
   shiftMode: "normal",
   redPhoneMode: false,
   auditWeekMode: false,
+  nightShiftMode: false,
+  undoSnapshot: null,
+  nightDriftId: null,
+  usedUndo: false,
   shiftEnded: false,
   verdict: "",
   ripples: [],
@@ -600,6 +606,11 @@ const els = {
   radioText: document.querySelector("#radioText"),
   auditWeekButton: document.querySelector("#auditWeekButton"),
   auditLabel: document.querySelector("#auditLabel"),
+  nightShiftButton: document.querySelector("#nightShiftButton"),
+  nightLabel: document.querySelector("#nightLabel"),
+  undoButton: document.querySelector("#undoButton"),
+  reviewGrade: document.querySelector("#reviewGrade"),
+  reviewHeadline: document.querySelector("#reviewHeadline"),
   settingClerkName: document.querySelector("#settingClerkName"),
   themeRadios: document.querySelectorAll('input[name="deskTheme"]'),
   evidenceSketch: document.querySelector("#evidenceSketch"),
@@ -929,37 +940,11 @@ function updateCareerAfterShift() {
 }
 
 function generateChallengeCode(score, mode) {
-  const modes = { normal: 0, daily: 1, campaign: 2, audit: 3 };
-  const modeVal = modes[mode] || 0;
-  const day = hashString(todayKey()) % 1296;
-  let packed = (score * 4 + modeVal) * 1296 + day;
-
-  let code = "";
-  for (let i = 0; i < 6; i += 1) {
-    code = CHALLENGE_CHARSET[packed % 32] + code;
-    packed = Math.floor(packed / 32);
-  }
-  return code;
+  return BureauEngine.generateChallengeCode(score, mode, todayKey());
 }
 
 function decodeChallengeCode(code) {
-  const cleaned = (code || "").trim().toUpperCase().replace(/[^0-9A-Z]/g, "");
-  if (cleaned.length !== 6) return null;
-
-  let packed = 0;
-  for (let i = 0; i < 6; i += 1) {
-    const idx = CHALLENGE_CHARSET.indexOf(cleaned[i]);
-    if (idx < 0) return null;
-    packed = packed * 32 + idx;
-  }
-
-  const day = packed % 1296;
-  const temp = Math.floor(packed / 1296);
-  const modeVal = temp % 4;
-  const score = Math.floor(temp / 4);
-  const modeMap = ["normal", "daily", "campaign", "audit"];
-
-  return { score, mode: modeMap[modeVal] || "normal", day };
+  return BureauEngine.decodeChallengeCode(code);
 }
 
 function showChallengeCode() {
@@ -1077,7 +1062,32 @@ function openEvidenceSketch() {
 
 function getEffectiveRisk(item) {
   if (!item) return 0;
-  return clamp(item.risk + (state.auditWeekMode ? 15 : 0), 0, 99);
+  return BureauEngine.effectiveRisk(item.risk, {
+    auditWeek: state.auditWeekMode,
+    nightShift: state.nightShiftMode
+  });
+}
+
+function stopNightDrift() {
+  if (state.nightDriftId) {
+    clearInterval(state.nightDriftId);
+    state.nightDriftId = null;
+  }
+}
+
+function startNightDrift() {
+  stopNightDrift();
+  if (!state.nightShiftMode || state.shiftEnded) return;
+
+  state.nightDriftId = setInterval(() => {
+    if (state.shiftEnded || !state.nightShiftMode) {
+      stopNightDrift();
+      return;
+    }
+    state.chaos = clamp(state.chaos + 1, 0, 99);
+    state.morale = clamp(state.morale - 1, 0, 99);
+    renderStats();
+  }, 12000);
 }
 
 function startAuditDrain() {
@@ -1351,7 +1361,65 @@ function playSound(name) {
 }
 
 function computeScore() {
-  return Math.max(0, state.stamps * 12 + state.morale - state.chaos + Math.floor(state.forms / 2));
+  return BureauEngine.computeScore(state);
+}
+
+function captureUndoSnapshot() {
+  return {
+    index: state.index,
+    chaos: state.chaos,
+    morale: state.morale,
+    forms: state.forms,
+    stamps: state.stamps,
+    coffee: state.coffee,
+    badges: state.badges.slice(),
+    shiftLog: state.shiftLog.slice(),
+    history: state.history.slice(),
+    journalScores: state.journalScores.slice(),
+    lastJournalScore: state.lastJournalScore,
+    certificateText: state.certificateText,
+    fastDecisions: state.fastDecisions,
+    ripples: state.ripples.slice(),
+    scanCount: state.scanCount,
+    hotlineCount: state.hotlineCount,
+    panicCount: state.panicCount
+  };
+}
+
+function undoLastStamp() {
+  if (state.shiftEnded || !state.undoSnapshot) {
+    addLog("Nothing to unstamp. The ink already believes in itself.");
+    return;
+  }
+  const snapshot = state.undoSnapshot;
+  state.index = snapshot.index;
+  state.chaos = snapshot.chaos;
+  state.morale = snapshot.morale;
+  state.forms = snapshot.forms;
+  state.stamps = snapshot.stamps;
+  state.coffee = snapshot.coffee;
+  state.badges = snapshot.badges;
+  state.shiftLog = snapshot.shiftLog;
+  state.history = snapshot.history;
+  state.journalScores = snapshot.journalScores;
+  state.lastJournalScore = snapshot.lastJournalScore;
+  state.certificateText = snapshot.certificateText;
+  state.fastDecisions = snapshot.fastDecisions;
+  state.ripples = snapshot.ripples;
+  state.scanCount = snapshot.scanCount;
+  state.hotlineCount = snapshot.hotlineCount;
+  state.panicCount = snapshot.panicCount;
+  state.undoSnapshot = null;
+  state.usedUndo = true;
+  addLog("Last stamp reversed. The form has been un-laminated.");
+  renderStats();
+  renderCase();
+  saveShiftState();
+  refreshRadioSoon();
+}
+
+function applyNightShiftClass() {
+  document.body.dataset.night = state.nightShiftMode ? "true" : "false";
 }
 
 function computeVerdict() {
@@ -1382,6 +1450,8 @@ function awardBadges() {
 
   if (state.redPhoneMode && state.shiftEnded && state.chaos < 70) earned.add("Crisis coolhead");
   if (state.auditWeekMode && state.shiftEnded) earned.add("Survived Audit Week");
+  if (state.nightShiftMode && state.shiftEnded) earned.add("Night owl");
+  if (state.usedUndo) earned.add("Unstamper");
   if (state.fastDecisions >= 3) earned.add("Speed demon");
   if (state.ripples.length >= 5) earned.add("Ripple architect");
   if (state.hotlineCount >= 5) earned.add("Hotline hero");
@@ -1864,6 +1934,13 @@ function updateDailyUI() {
   els.redPhoneButton.classList.toggle("is-active", state.redPhoneMode);
   els.auditWeekButton.classList.toggle("is-active", state.auditWeekMode);
   els.auditLabel.hidden = !state.auditWeekMode;
+  if (els.nightShiftButton) {
+    els.nightShiftButton.classList.toggle("is-active", state.nightShiftMode);
+  }
+  if (els.nightLabel) {
+    els.nightLabel.hidden = !state.nightShiftMode;
+  }
+  applyNightShiftClass();
 }
 
 function saveShiftState() {
@@ -1885,6 +1962,8 @@ function saveShiftState() {
       shiftMode: state.shiftMode,
       redPhoneMode: state.redPhoneMode,
       auditWeekMode: state.auditWeekMode,
+      nightShiftMode: state.nightShiftMode,
+      usedUndo: state.usedUndo,
       fastDecisions: state.fastDecisions,
       scanCount: state.scanCount,
       hotlineCount: state.hotlineCount,
@@ -1939,6 +2018,8 @@ function restoreShiftState(saved) {
   state.shiftMode = saved.shiftMode || "normal";
   state.redPhoneMode = saved.redPhoneMode || false;
   state.auditWeekMode = saved.auditWeekMode || false;
+  state.nightShiftMode = saved.nightShiftMode || false;
+  state.usedUndo = saved.usedUndo || false;
   state.fastDecisions = saved.fastDecisions || 0;
   state.scanCount = saved.scanCount || 0;
   state.hotlineCount = saved.hotlineCount || 0;
@@ -1961,6 +2042,7 @@ function restoreShiftState(saved) {
     els.shiftEndPanel.hidden = true;
     startCrisisTimer();
     startAuditDrain();
+    startNightDrift();
     refreshRadioSoon();
   }
 }
@@ -2029,8 +2111,12 @@ function startShift(mode = "normal", options = {}) {
   renderStats();
   renderCase();
   showGhostNote();
+  state.undoSnapshot = null;
+  state.usedUndo = false;
   startCrisisTimer();
   startAuditDrain();
+  startNightDrift();
+  applyNightShiftClass();
   refreshRadioSoon();
 
   const openMessages = {
@@ -2042,6 +2128,7 @@ function startShift(mode = "normal", options = {}) {
 
   if (state.redPhoneMode) addLog("Red Phone Shift active. Fifteen seconds per case.");
   if (state.auditWeekMode) addLog("Audit Week engaged. Forms drain every 10 seconds.");
+  if (state.nightShiftMode) addLog("Night Shift engaged. The lamps buzz. Chaos drifts upward.");
 
   els.ticker.textContent = "Awaiting paperwork weather.";
   renderCertificate("Pending Stamp", "No nonsense has been certified yet.", "Choose a decision and the bureau will manufacture confidence.");
@@ -2139,6 +2226,8 @@ function decide(action, options = {}) {
   const item = currentCase();
   if (!item) return;
 
+  state.undoSnapshot = captureUndoSnapshot();
+
   stopCrisisTimer();
 
   const tone = actionTone[action];
@@ -2211,6 +2300,7 @@ function decide(action, options = {}) {
 function endShift() {
   stopCrisisTimer();
   stopAuditDrain();
+  stopNightDrift();
   state.shiftEnded = true;
   state.verdict = computeVerdict();
   awardBadges();
@@ -2252,7 +2342,22 @@ function showShiftEnd() {
       ? Math.round(state.journalScores.reduce((a, b) => a + b, 0) / state.journalScores.length)
       : null;
   const journalLine = avgJournal !== null ? ` Avg eloquence: ${avgJournal}/100.` : "";
+  const review = BureauEngine.performanceReview({
+    stamps: state.stamps,
+    morale: state.morale,
+    chaos: state.chaos,
+    forms: state.forms,
+    queueLength: state.shiftQueue.length,
+    fastDecisions: state.fastDecisions
+  });
   els.shiftVerdict.textContent = `${state.verdict} Rank: ${rankName()}. Stamps: ${state.stamps}. Score: ${computeScore()}.${journalLine}`;
+  if (els.reviewGrade) {
+    els.reviewGrade.textContent = review.grade;
+    els.reviewGrade.dataset.grade = review.grade;
+  }
+  if (els.reviewHeadline) {
+    els.reviewHeadline.textContent = `${review.headline} ${review.notes[0] || ""}`.trim();
+  }
   renderCase();
 }
 
@@ -2916,6 +3021,7 @@ function handleKeyboard(event) {
     c: () => coffeeBreak(),
     h: () => callHotline(),
     p: () => panic(),
+    u: () => undoLastStamp(),
     "?": () => openModal(els.helpModal)
   };
 
@@ -3350,6 +3456,28 @@ if (els.evidenceSketch) {
       event.preventDefault();
       openEvidenceSketch();
     }
+  });
+}
+
+if (els.undoButton) {
+  els.undoButton.addEventListener("click", undoLastStamp);
+}
+
+if (els.nightShiftButton) {
+  els.nightShiftButton.addEventListener("click", () => {
+    state.nightShiftMode = !state.nightShiftMode;
+    updateDailyUI();
+    if (state.nightShiftMode) {
+      addLog("Night Shift engaged. Lamps dim. Chaos drifts every 12 seconds. Cases +10 risk.");
+      startNightDrift();
+      renderCase();
+    } else {
+      stopNightDrift();
+      addLog("Dawn paperwork. The night clerks have clocked out.");
+      renderCase();
+    }
+    refreshRadioSoon();
+    if (!state.shiftEnded) saveShiftState();
   });
 }
 

@@ -2,6 +2,20 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 2026-08-19 v5
+
+### Added
+
+- Extracted `bureau-engine.js` for challenge codes, scoring, night-shift risk, and performance reviews, with Node tests.
+- **Night Shift** overlay: +10 case risk, drifting chaos/morale, dim desk lamps, and a Night owl honor.
+- **Undo last stamp** (`U`) reverses the most recent decision before the ink dries.
+- **Performance review** letter grade (A–F) on the shift-end screen.
+- Unstamper honor for clerks who actually reverse a stamp.
+
+### Changed
+
+- Service worker cache bumped to `bureau-v5` so the engine script is available offline.
+
 ## 2026-07-05 v4
 
 ### Added
