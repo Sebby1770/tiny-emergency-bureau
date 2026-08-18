@@ -1,10 +1,11 @@
-const CACHE_NAME = "bureau-v2";
+const CACHE_NAME = "bureau-v5";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./script.js",
   "./config.js",
+  "./bureau-engine.js",
   "./manifest.json"
 ];
 

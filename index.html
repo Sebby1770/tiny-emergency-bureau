@@ -60,8 +60,12 @@
           <button id="auditWeekButton" class="mode-button mode-button-audit" type="button" title="Hard mode: forms drain, risk rises">
             Audit Week
           </button>
+          <button id="nightShiftButton" class="mode-button mode-button-night" type="button" title="Night Shift: dim lamps, drifting chaos">
+            Night Shift
+          </button>
           <span id="dailyLabel" class="daily-label" hidden>Daily Challenge</span>
           <span id="auditLabel" class="daily-label audit-label" hidden>Audit Week</span>
+          <span id="nightLabel" class="daily-label night-label" hidden>Night Shift</span>
           <span id="campaignLabel" class="daily-label campaign-label" hidden>Season 1</span>
         </div>
 
@@ -266,6 +270,15 @@
               <span class="button-icon arrow-icon" aria-hidden="true"></span>
               Escalate
             </button>
+            <button
+              id="undoButton"
+              class="action-button undo"
+              type="button"
+              aria-keyshortcuts="U"
+              title="Undo last stamp (U)"
+            >
+              Undo
+            </button>
           </div>
         </section>
 
@@ -353,6 +366,11 @@
 
           <div id="shiftEndPanel" class="shift-end-panel" hidden>
             <h3>Shift complete</h3>
+            <p class="performance-review">
+              <span class="eyebrow">Performance review</span>
+              <strong id="reviewGrade">—</strong>
+              <span id="reviewHeadline"></span>
+            </p>
             <p id="shiftVerdict" class="shift-verdict"></p>
             <label class="ghost-note-field" for="ghostNoteInput">
               <span class="eyebrow">Note for the next clerk</span>
@@ -653,6 +671,7 @@
           <div><dt>C</dt><dd>Coffee break</dd></div>
           <div><dt>H</dt><dd>Call hotline</dd></div>
           <div><dt>P</dt><dd>Pull panic lever</dd></div>
+          <div><dt>U</dt><dd>Undo last stamp</dd></div>
           <div><dt>?</dt><dd>Open this help panel</dd></div>
           <div><dt>Esc</dt><dd>Close modals and settings</dd></div>
           <div><dt>Click</dt><dd>District zones on city map for local chaos reports</dd></div>
@@ -663,6 +682,7 @@
     </div>
 
     <script src="config.js"></script>
+    <script src="bureau-engine.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

@@ -2186,6 +2186,43 @@ body[data-theme="midnight"] .canvas-wrap {
   color: #fff8ec;
 }
 
+.mode-button-night.is-active,
+.night-label {
+  background: #1c2740;
+  color: #f8c94a;
+}
+
+body[data-night="true"] {
+  --paper: #1b2030;
+  --paper-deep: #141824;
+}
+
+body[data-night="true"] .app-shell {
+  filter: saturate(0.85) brightness(0.92);
+}
+
+.action-button.undo {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+.performance-review {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+}
+
+.performance-review strong {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.performance-review strong[data-grade="A"] { color: var(--mint-dark); }
+.performance-review strong[data-grade="B"] { color: var(--blue); }
+.performance-review strong[data-grade="C"] { color: var(--gold); }
+.performance-review strong[data-grade="D"],
+.performance-review strong[data-grade="F"] { color: var(--coral-dark); }
+
 /* Bureau radio */
 .bureau-radio {
   display: flex;

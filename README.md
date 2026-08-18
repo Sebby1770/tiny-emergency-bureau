@@ -10,6 +10,9 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 - **Achievement gallery** — 18 unlockable honors with hints; full-screen grid with animations
 - **Bureau Radio** — Rotating news headlines with typewriter effect (ripples, chaos, campaign, decisions)
 - **Desk customization** — Clerk name on certificates; four theme presets (Classic, Midnight, Mint, Sunbleached)
+- **Night Shift** — Dim lamps, +10 case risk, drifting chaos; Night owl honor
+- **Undo last stamp** — Reverse the most recent decision (`U`) before the ink dries
+- **Performance review** — Letter grade A–F at shift end from score, chaos, and stamps
 - **Audit Week hard mode** — Forms drain every 10s, +15 case risk, rising chaos; survival badge
 - **Challenge codes** — 6-character shareable codes at shift end; load a friend's code to compare scores
 - **Evidence sketch viewer** — Procedural per-case doodle canvas; click to enlarge
@@ -45,6 +48,7 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 | `C` | Coffee break |
 | `H` | Call hotline |
 | `P` | Pull panic lever |
+| `U` | Undo last stamp |
 | `?` | Open help modal |
 | `Esc` | Close modals and settings |
 
@@ -63,6 +67,7 @@ Click districts on the city canvas for localized chaos reports.
 | **Daily desk** | Today's seeded case order with local best-score tracking |
 | **Red Phone** | Overlay: 15s timer per case (toggle anytime) |
 | **Audit Week** | Overlay: forms drain, +15 risk, slow chaos rise (toggle anytime) |
+| **Night Shift** | Overlay: dim lamps, +10 risk, drifting chaos (toggle anytime) |
 
 ## Career & achievements
 

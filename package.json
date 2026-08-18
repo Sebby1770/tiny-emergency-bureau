@@ -1,0 +1,9 @@
+{
+  "name": "tiny-emergency-bureau",
+  "version": "5.0.0",
+  "private": true,
+  "description": "A funny interactive tiny emergency triage desk.",
+  "scripts": {
+    "test": "node --test tests/bureau-engine.test.js"
+  }
+}
