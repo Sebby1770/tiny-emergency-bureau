@@ -44,6 +44,13 @@ All notable changes to the Bureau of Tiny Emergencies project.
   and non-mutation, and every rejection path in save-state validation.
 - A CI step that loads `bureau-engine.js` standalone, so the split stays honest.
 
+### Fixed (tooling)
+
+- `npm test` used a quoted glob, which `node --test` only expands from Node 22
+  on, so the Node 20 leg of the CI matrix could not find any test files. The
+  glob is now left unquoted for the shell to expand, so Node only ever receives
+  explicit paths and the invocation is version-independent.
+
 ## 2026-08-19 v5
 
 ### Added
