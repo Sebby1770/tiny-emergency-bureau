@@ -2,6 +2,48 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 6.0.0 - 2026-09-29
+
+### Fixed
+
+- **A deployed update could not reach a returning clerk.** The service worker
+  served every static asset cache-first, `index.html` and `script.js` included,
+  so a browser that had visited once kept running that build forever and only a
+  `CACHE_NAME` bump ever dislodged it. Documents, scripts, and the manifest are
+  now network-first with a cache fallback and a 4-second timeout, so a shipped
+  fix lands on the next load while the desk stays fully playable offline.
+- A resumed shift could restore a desk with missing counters. `index`, `chaos`,
+  `morale`, `forms`, `coffee`, and `stamps` were read straight off the saved
+  payload with no fallback and no validation, so a truncated or older snapshot
+  produced `undefined` counters, a score of `NaN`, and a queue index pointing at
+  nothing. Snapshots now carry a schema version and are validated before use;
+  anything unrecognised is discarded and the shift simply starts fresh.
+- Queue cards are built from text nodes, and the certificate and badge gallery
+  escape their interpolated copy. Case titles are authored today, but procedural
+  cases assemble theirs at runtime, so the escaping is now structural rather
+  than an assumption about the content.
+- `manifest.json` started at `./index.html` while `vercel.json` sets
+  `cleanUrls`, which redirects that to `./`. An installed app now starts on the
+  canonical URL, and the manifest declares an `id` and `scope`.
+
+### Changed
+
+- The desk's rules moved out of `script.js` into `bureau-engine.js`: seeded
+  randomness, case rules, journal scoring, verdicts, honour evaluation, campaign
+  progression, and save-state validation. `script.js` delegates rather than
+  keeping a second copy, so there is one definition of each rule and all of them
+  are reachable from a test without a DOM.
+- `evaluateBadges` takes a plain context object instead of reading live game
+  state, and returns a sorted array, so equal contexts always compare equal.
+
+### Added
+
+- **19 -> 67 tests**, covering every honour threshold and its near-miss, all
+  five performance-review grade bands, the challenge-code cap and its
+  unencodable symbols, campaign ratio tie-breaking, seeded-shuffle determinism
+  and non-mutation, and every rejection path in save-state validation.
+- A CI step that loads `bureau-engine.js` standalone, so the split stays honest.
+
 ## 2026-08-19 v5
 
 ### Added

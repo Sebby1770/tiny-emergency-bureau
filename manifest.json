@@ -2,7 +2,7 @@
   "name": "Bureau of Tiny Emergencies",
   "short_name": "Tiny Bureau",
   "description": "A funny interactive tiny emergency triage desk. Approve, deny, or escalate absurd case files.",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f6ead6",
   "theme_color": "#10141f",
@@ -20,5 +20,7 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "/",
+  "scope": "./"
 }
