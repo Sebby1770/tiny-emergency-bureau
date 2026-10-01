@@ -35,7 +35,7 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 - **Settings drawer** — Reduced motion, dark desk theme, sound effects, ambient hum
 - **First-visit tutorial** — Onboarding modal for new clerks
 - **Export shift summary** — Copy a markdown report of your session
-- **Offline PWA** — Service worker caches static assets for offline play
+- **Offline PWA** — Service worker keeps the desk playable with no network, while still letting a deployed update reach returning clerks
 
 ## Keyboard shortcuts
 
@@ -88,13 +88,26 @@ Open **Settings** to set your clerk name and pick a desk theme:
 | **Mint** | Cool green administrative calm |
 | **Sunbleached** | Faded afternoon ledger tones |
 
+## Architecture
+
+The desk's **rules** and its **browser layer** are separate files, so the rules
+can be exercised without a DOM:
+
+- `bureau-engine.js` — pure, dependency-free game logic: seeded randomness,
+  case rules, journal scoring, verdicts, honours, campaign progression,
+  challenge codes, and save-state validation. Loads in Node and in the browser.
+- `script.js` — everything that touches the DOM, canvas, audio, or storage.
+
+Anything in the engine is covered by `tests/`; run them with `npm test`.
+
 ## Files
 
 - `index.html` — App structure, modals, settings drawer, accessibility markup
 - `styles.css` — Responsive illustrated interface, dark theme, focus styles
+- `bureau-engine.js` — Pure game rules, shared by the app and the tests
 - `script.js` — Cases, scoring, canvas animation, campaign, ripples, crisis timers, journal
 - `config.js` — Optional Supabase leaderboard configuration
-- `sw.js` — Service worker for offline static asset caching
+- `sw.js` — Service worker: network-first for documents and scripts, cache-first for the rest
 - `manifest.json` — PWA manifest for installable desk experience
 - `supabase/` — Leaderboard SQL migration and setup docs
 - `CHANGELOG.md` — Version history

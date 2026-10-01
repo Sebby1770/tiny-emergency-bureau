@@ -627,33 +627,17 @@ const els = {
 
 const ctx = els.canvas.getContext("2d");
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function hashString(value) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function seededRandom(seed) {
-  let t = seed + 0x6d2b79f5;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-
-function pickFrom(list, seed) {
-  return list[Math.floor(seededRandom(seed) * list.length)];
-}
+// The desk's pure rules live in bureau-engine.js so they can be exercised
+// without a DOM. Everything below is the browser-facing half.
+const clamp = BureauEngine.clamp;
+const hashString = BureauEngine.hashString;
+const seededRandom = BureauEngine.seededRandom;
+const pickFrom = BureauEngine.pickFrom;
+const seededShuffle = BureauEngine.seededShuffle;
+const escapeHtml = BureauEngine.escapeHtml;
 
 function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return BureauEngine.dayKey();
 }
 
 function dailyDateLabel() {
@@ -681,15 +665,6 @@ function generateProceduralCase(seed) {
   };
 }
 
-function seededShuffle(items, seed) {
-  const list = [...items];
-  for (let i = list.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(seededRandom(seed + i) * (i + 1));
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-  return list;
-}
-
 function loadCampaignState() {
   try {
     const raw = localStorage.getItem(CAMPAIGN_KEY);
@@ -714,9 +689,7 @@ function saveCampaignState(campaign) {
 }
 
 function getCampaignAct(shiftIndex) {
-  if (shiftIndex < 2) return 1;
-  if (shiftIndex < 4) return 2;
-  return 3;
+  return BureauEngine.campaignAct(shiftIndex);
 }
 
 function resetCampaign() {
@@ -907,10 +880,10 @@ function renderBadgeGallery(animateNew = false) {
       classes.push("is-new-unlock");
     }
     return `
-      <article class="${classes.join(" ")}" data-badge="${badge.id}">
-        <span class="badge-icon" aria-hidden="true">${badge.icon}</span>
-        <strong>${badge.name}</strong>
-        <small>${isEarned ? "Unlocked" : badge.hint}</small>
+      <article class="${classes.join(" ")}" data-badge="${escapeHtml(badge.id)}">
+        <span class="badge-icon" aria-hidden="true">${escapeHtml(badge.icon)}</span>
+        <strong>${escapeHtml(badge.name)}</strong>
+        <small>${escapeHtml(isEarned ? "Unlocked" : badge.hint)}</small>
       </article>`;
   }).join("");
 }
@@ -1423,89 +1396,43 @@ function applyNightShiftClass() {
 }
 
 function computeVerdict() {
-  if (state.chaos >= 85) return "The city survived, but only out of spite.";
-  if (state.morale >= 80 && state.chaos <= 45) return "A triumph of laminated calm.";
-  if (state.forms >= 75) return "Paperwork prevailed. Justice took a number.";
-  if (state.stamps >= 10) return "Stamp output heroic. Bureau morale cautiously optimistic.";
-  if (state.morale < 35) return "Morale filed for early retirement.";
-  return "Shift closed with administratively acceptable ambiguity.";
+  return BureauEngine.computeVerdict(state);
 }
 
 function awardBadges() {
-  const earned = new Set(state.badges);
-  const career = loadCareer();
-
-  if (state.stamps >= 1) earned.add("First stamp");
-  if (state.coffee >= 3) earned.add("Caffeine liaison");
-  if (state.chaos >= 80) earned.add("Chaos enjoyer");
-  if (state.morale >= 75) earned.add("Morale gardener");
-  if (state.forms >= 70) earned.add("Form archivist");
-  if (state.stamps >= state.shiftQueue.length) earned.add("Full queue clerk");
-
-  const avgJournal =
-    state.journalScores.length > 0
-      ? state.journalScores.reduce((a, b) => a + b, 0) / state.journalScores.length
-      : 0;
-  if (avgJournal >= 80) earned.add("Silver Tongue");
-
-  if (state.redPhoneMode && state.shiftEnded && state.chaos < 70) earned.add("Crisis coolhead");
-  if (state.auditWeekMode && state.shiftEnded) earned.add("Survived Audit Week");
-  if (state.nightShiftMode && state.shiftEnded) earned.add("Night owl");
-  if (state.usedUndo) earned.add("Unstamper");
-  if (state.fastDecisions >= 3) earned.add("Speed demon");
-  if (state.ripples.length >= 5) earned.add("Ripple architect");
-  if (state.hotlineCount >= 5) earned.add("Hotline hero");
-  if (state.scanCount >= 3) earned.add("Scanner specialist");
-  if (state.panicCount >= 2) earned.add("Panic artist");
-  if (state.setDailyBest) earned.add("Daily champion");
-
-  if (career.totalShifts >= 10) earned.add("Bureau veteran");
-  if (career.totalStamps >= 100) earned.add("Stamp collector");
-
-  const campaign = loadCampaignState();
-  if (campaign.completed) earned.add("Campaign survivor");
-
-  state.badges = [...earned];
+  state.badges = BureauEngine.evaluateBadges({
+    existing: state.badges,
+    shift: {
+      stamps: state.stamps,
+      coffee: state.coffee,
+      chaos: state.chaos,
+      morale: state.morale,
+      forms: state.forms,
+      queueLength: state.shiftQueue.length,
+      journalScores: state.journalScores,
+      redPhoneMode: state.redPhoneMode,
+      auditWeekMode: state.auditWeekMode,
+      nightShiftMode: state.nightShiftMode,
+      ended: state.shiftEnded,
+      usedUndo: state.usedUndo,
+      fastDecisions: state.fastDecisions,
+      rippleCount: state.ripples.length,
+      hotlineCount: state.hotlineCount,
+      scanCount: state.scanCount,
+      panicCount: state.panicCount,
+      setDailyBest: state.setDailyBest
+    },
+    career: loadCareer(),
+    campaign: loadCampaignState()
+  });
 }
 
 function bestActionForRisk(risk) {
-  if (risk >= 70) return "escalate";
-  if (risk >= 45) return "deny";
-  return "approve";
+  return BureauEngine.bestActionForRisk(risk);
 }
 
 function scoreJournal(text, action) {
-  const trimmed = (text || "").trim();
-  if (!trimmed) return 0;
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  const wordCount = words.length;
-
-  let score = 0;
-
-  if (wordCount >= 8 && wordCount <= 60) {
-    score += 30;
-  } else if (wordCount >= 4) {
-    score += Math.min(20, wordCount * 2);
-  } else {
-    score += wordCount * 3;
-  }
-
-  const lower = trimmed.toLowerCase();
-  const keywordHits = bureaucraticKeywords.filter((kw) => lower.includes(kw)).length;
-  score += Math.min(40, keywordHits * 8);
-
-  const actionKeywords = {
-    approve: ["approve", "grant", "authorize", "permit", "endorse", "sanction"],
-    deny: ["deny", "reject", "refuse", "decline", "prohibit", "invalidate"],
-    escalate: ["escalate", "refer", "defer", "committee", "senior", "higher authority"]
-  };
-
-  const matches = (actionKeywords[action] || []).some((kw) => lower.includes(kw));
-  if (matches) score += 25;
-  else score += 10;
-
-  return clamp(Math.round(score), 0, 100);
+  return BureauEngine.scoreJournal(text, action, bureaucraticKeywords);
 }
 
 function createRipple(item, action) {
@@ -1601,20 +1528,7 @@ function updateCampaignUI() {
 }
 
 function getDecisionRatio(campaign) {
-  const total =
-    campaign.decisions.approve + campaign.decisions.deny + campaign.decisions.escalate || 1;
-  return {
-    approve: campaign.decisions.approve / total,
-    deny: campaign.decisions.deny / total,
-    escalate: campaign.decisions.escalate / total,
-    dominant:
-      campaign.decisions.approve >= campaign.decisions.deny &&
-      campaign.decisions.approve >= campaign.decisions.escalate
-        ? "approve"
-        : campaign.decisions.deny >= campaign.decisions.escalate
-          ? "deny"
-          : "escalate"
-  };
+  return BureauEngine.decisionRatio(campaign);
 }
 
 function buildInterlude(campaign) {
@@ -1948,6 +1862,7 @@ function saveShiftState() {
 
   try {
     const payload = {
+      version: BureauEngine.SHIFT_STATE_VERSION,
       savedAt: Date.now(),
       index: state.index,
       chaos: state.chaos,
@@ -1984,8 +1899,15 @@ function loadShiftState() {
     const raw = localStorage.getItem(SHIFT_STATE_KEY);
     if (!raw) return null;
 
-    const saved = JSON.parse(raw);
-    if (!saved.savedAt || Date.now() - saved.savedAt > SHIFT_MAX_AGE_MS) {
+    // The engine validates the schema version, the age, and every counter. A
+    // snapshot written by an older build, or one that lost fields on the way
+    // in, is discarded rather than restored onto a half-initialised desk.
+    const saved = BureauEngine.readShiftState(raw, {
+      now: Date.now(),
+      maxAgeMs: SHIFT_MAX_AGE_MS
+    });
+
+    if (!saved) {
       clearShiftState();
       return null;
     }
@@ -2005,17 +1927,19 @@ function clearShiftState() {
 }
 
 function restoreShiftState(saved) {
+  // Every field here has already been validated and normalised by
+  // BureauEngine.readShiftState, so nothing below can land as undefined.
   state.index = saved.index;
   state.chaos = saved.chaos;
   state.morale = saved.morale;
   state.forms = saved.forms;
-  state.coffee = saved.coffee || 0;
+  state.coffee = saved.coffee;
   state.stamps = saved.stamps;
-  state.history = saved.history || [];
-  state.badges = saved.badges || [];
-  state.shiftLog = saved.shiftLog || [];
-  state.shiftQueue = saved.shiftQueue || buildShiftQueue(saved.shiftMode || "normal");
-  state.shiftMode = saved.shiftMode || "normal";
+  state.history = saved.history;
+  state.badges = saved.badges;
+  state.shiftLog = saved.shiftLog;
+  state.shiftQueue = saved.shiftQueue;
+  state.shiftMode = saved.shiftMode;
   state.redPhoneMode = saved.redPhoneMode || false;
   state.auditWeekMode = saved.auditWeekMode || false;
   state.nightShiftMode = saved.nightShiftMode || false;
@@ -2024,9 +1948,9 @@ function restoreShiftState(saved) {
   state.scanCount = saved.scanCount || 0;
   state.hotlineCount = saved.hotlineCount || 0;
   state.panicCount = saved.panicCount || 0;
-  state.ripples = saved.ripples || [];
-  state.journalScores = saved.journalScores || [];
-  state.certificateText = saved.certificateText || "";
+  state.ripples = saved.ripples;
+  state.journalScores = saved.journalScores;
+  state.certificateText = saved.certificateText;
   state.shiftStart = saved.shiftStart ? new Date(saved.shiftStart) : new Date();
   state.shiftEnded = state.index >= state.shiftQueue.length;
   state.verdict = state.shiftEnded ? computeVerdict() : "";
@@ -2207,14 +2131,22 @@ function renderQueue() {
     card.className = "queue-card";
     card.dataset.tone = tones[(state.index + i) % tones.length];
 
+    // Built from text nodes rather than interpolated markup. Case copy is
+    // authored today, but procedural cases assemble their titles from data at
+    // runtime, so the escaping should be structural rather than a standing
+    // assumption about the content.
+    const heading = document.createElement("strong");
+    const detail = document.createElement("span");
+
     if (!item) {
-      card.innerHTML = `<strong>Queue clear</strong><span>Awaiting next shift</span>`;
+      heading.textContent = "Queue clear";
+      detail.textContent = "Awaiting next shift";
     } else {
-      card.innerHTML = `
-        <strong>${item.title}</strong>
-        <span>${item.citizen} | ${riskName(item.risk)}</span>
-      `;
+      heading.textContent = item.title;
+      detail.textContent = `${item.citizen} | ${riskName(item.risk)}`;
     }
+
+    card.append(heading, detail);
 
     els.queue.appendChild(card);
   }
@@ -2524,14 +2456,27 @@ async function renderLeaderboard() {
   }
 
   entries.forEach((entry) => {
+    // Leaderboard rows can carry another player's typed clerk name straight out
+    // of the shared Supabase table, so build them from text nodes rather than
+    // interpolating into markup.
     const li = document.createElement("li");
-    li.innerHTML = `
-      <span>
-        <span class="clerk-name">${entry.player_name || "Anonymous Clerk"}</span>
-        <span class="clerk-meta">${entry.rank_title} · ${entry.stamps} stamps · ${entry.mode || "normal"}</span>
-      </span>
-      <span class="clerk-score">${entry.score}</span>
-    `;
+    const group = document.createElement("span");
+
+    const name = document.createElement("span");
+    name.className = "clerk-name";
+    name.textContent = entry.player_name || "Anonymous Clerk";
+
+    const meta = document.createElement("span");
+    meta.className = "clerk-meta";
+    meta.textContent = `${entry.rank_title || "Clerk"} · ${entry.stamps} stamps · ${entry.mode || "normal"}`;
+
+    group.append(name, meta);
+
+    const score = document.createElement("span");
+    score.className = "clerk-score";
+    score.textContent = entry.score;
+
+    li.append(group, score);
     els.leaderboardList.appendChild(li);
   });
 }
@@ -2550,12 +2495,14 @@ function renderCertificate(kicker, title, body, journalScore = 0) {
     journalScore > 0
       ? `<p class="cert-eloquence">Eloquence ${journalScore}/100</p>`
       : "";
+  // `body` carries ripple modifier text assembled at runtime, and `title` comes
+  // from procedural cases, so escape both rather than trusting the pipeline.
   els.certificate.innerHTML = `
-    <p class="cert-kicker">${kicker}</p>
-    <p class="cert-title">${title}</p>
-    <p class="cert-body">${body}</p>
+    <p class="cert-kicker">${escapeHtml(kicker)}</p>
+    <p class="cert-title">${escapeHtml(title)}</p>
+    <p class="cert-body">${escapeHtml(body)}</p>
     ${eloquenceHtml}
-    <p class="cert-clerk">Certified by ${getClerkName()}, Bureau of Tiny Emergencies</p>
+    <p class="cert-clerk">Certified by ${escapeHtml(getClerkName())}, Bureau of Tiny Emergencies</p>
   `;
 }
 
