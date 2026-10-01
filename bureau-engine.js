@@ -138,6 +138,48 @@
   }
 
   // ---------------------------------------------------------------------
+  // Keyboard
+  // ---------------------------------------------------------------------
+
+  const SHORTCUT_ACTIONS = {
+    a: "approve",
+    d: "deny",
+    e: "escalate",
+    s: "scan",
+    c: "coffee",
+    h: "hotline",
+    p: "panic",
+    u: "undo",
+    "?": "help"
+  };
+
+  /**
+   * Decide what a keydown should do at the desk, or null to leave it alone.
+   *
+   * Browser and OS chords always belong to the browser. Without that guard,
+   * Cmd+A approved the current case, Cmd+C took a coffee break and Ctrl+P
+   * pulled the panic lever — and because each shortcut called
+   * preventDefault(), the select-all, copy and print the player actually
+   * asked for never happened. Shift is allowed through because "?" needs it.
+   */
+  function shortcutAction(event, context) {
+    const ev = event || {};
+    const ctx = context || {};
+    const key = String(ev.key || "").toLowerCase();
+
+    if (ctx.typing) return null;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return null;
+    if (key === "escape") return "close";
+
+    // With a dialog or the settings drawer open, only help is reachable; the
+    // case behind the overlay must not be stamped blind.
+    if (ctx.overlayOpen) return key === "?" ? "help" : null;
+    if (ctx.tutorialOpen) return null;
+
+    return SHORTCUT_ACTIONS[key] || null;
+  }
+
+  // ---------------------------------------------------------------------
   // Honours
   // ---------------------------------------------------------------------
 
@@ -426,6 +468,7 @@
     campaignAct,
     decisionRatio,
     readShiftState,
+    shortcutAction,
     computeScore,
     generateChallengeCode,
     decodeChallengeCode,

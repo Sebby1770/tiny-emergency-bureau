@@ -2,6 +2,40 @@
 
 All notable changes to the Bureau of Tiny Emergencies project.
 
+## 6.1.0 - 2026-10-01
+
+### Fixed
+
+- **Browser shortcuts drove the game.** The keyboard handler ignored modifier
+  keys, so Cmd+A approved and stamped the current case, Cmd+C took a coffee
+  break, and Ctrl+P pulled the panic lever — and because each called
+  `preventDefault()`, the select-all, copy and print the player asked for never
+  happened. Any Cmd, Ctrl or Alt chord now belongs to the browser.
+- **Dialogs claimed to be modal but were not.** Eight dialogs declare
+  `aria-modal="true"`, promising assistive technology that the page behind is
+  inert, yet Tab walked straight out of them into the desk. While a dialog is
+  open, every other top-level element is now `inert` — unfocusable, unclickable,
+  and hidden from screen readers — with stacked dialogs handled correctly.
+- **Closing a dialog lost focus.** Focus fell to `<body>`, sending keyboard users
+  back to the top of the page. It now returns to the control that opened the
+  dialog, or into the dialog underneath when one was stacked.
+- **Escape stole focus.** Escape closes every overlay, and closing the settings
+  drawer always focused the settings button even when the drawer was already
+  shut, so Escape with nothing open moved focus. Closing a closed dialog is now
+  a no-op.
+- **"Network-first" could still serve a stale game.** The service worker's
+  network fetch inherited the page's default cache mode, so on any host that does
+  not send an explicit no-cache header the browser's HTTP cache answered instead
+  of the network — reproduced against a server with only `Last-Modified`. The
+  fetch now forces revalidation, which costs a 304 when nothing changed, and the
+  desk still loads fully offline.
+
+### Changed
+
+- Keyboard routing moved into `bureau-engine.js` as `shortcutAction`, a pure
+  function covered by 9 new tests (modifiers, overlays, tutorial, typing,
+  Escape, Shift for `?`, malformed events). 67 -> 76 tests.
+
 ## 6.0.0 - 2026-09-29
 
 ### Fixed

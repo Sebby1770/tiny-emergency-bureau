@@ -2762,24 +2762,95 @@ async function exportShift() {
   playSound("click");
 }
 
+// ---------------------------------------------------------------------------
+// Dialogs
+//
+// Every dialog (and the settings drawer) is a direct child of <body> and
+// declares aria-modal="true" — a promise to assistive technology that the rest
+// of the page is inert. Nothing used to keep that promise: Tab walked straight
+// out of an open dialog into the desk behind it, and closing one dropped focus
+// on <body>, so keyboard users were sent back to the top of the page.
+//
+// The dialog on top of the stack is now the only interactive top-level element:
+// every sibling is marked `inert`, which makes it unfocusable, unclickable and
+// hidden from the accessibility tree. When the last dialog closes, focus goes
+// back to whatever opened the first one.
+// ---------------------------------------------------------------------------
+
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const dialogStack = [];
+let dialogOpener = null;
+
+function syncDialogInert() {
+  const top = dialogStack[dialogStack.length - 1] || null;
+  for (const child of document.body.children) {
+    if (child.tagName === "SCRIPT") continue;
+    child.inert = Boolean(top) && child !== top;
+  }
+}
+
+function showDialog(dialog, focusTarget) {
+  if (!dialog) return;
+
+  if (dialogStack.length === 0) {
+    const active = document.activeElement;
+    dialogOpener = active && active !== document.body ? active : null;
+  }
+
+  const existing = dialogStack.indexOf(dialog);
+  if (existing !== -1) dialogStack.splice(existing, 1);
+  dialogStack.push(dialog);
+
+  dialog.hidden = false;
+  syncDialogInert();
+
+  const target = focusTarget || dialog.querySelector(FOCUSABLE);
+  if (target) target.focus();
+}
+
+function hideDialog(dialog) {
+  // Closing something that is already closed must be a no-op. Escape closes
+  // every overlay, and the old drawer close always moved focus to the settings
+  // button — so pressing Escape with nothing open stole focus.
+  if (!dialog || dialog.hidden) return;
+
+  dialog.hidden = true;
+  const index = dialogStack.indexOf(dialog);
+  if (index !== -1) dialogStack.splice(index, 1);
+  syncDialogInert();
+
+  if (dialogStack.length > 0) {
+    const top = dialogStack[dialogStack.length - 1];
+    if (!top.contains(document.activeElement)) {
+      const target = top.querySelector(FOCUSABLE);
+      if (target) target.focus();
+    }
+    return;
+  }
+
+  const opener = dialogOpener;
+  dialogOpener = null;
+  if (opener && opener.isConnected && typeof opener.focus === "function") {
+    opener.focus();
+  }
+}
+
 function openDrawer() {
-  els.settingsDrawer.hidden = false;
-  els.settingReducedMotion.focus();
+  showDialog(els.settingsDrawer, els.settingReducedMotion);
 }
 
 function closeDrawer() {
-  els.settingsDrawer.hidden = true;
-  els.settingsButton.focus();
+  hideDialog(els.settingsDrawer);
 }
 
 function openModal(modal) {
-  modal.hidden = false;
-  const focusTarget = modal.querySelector("button, [href], input");
-  if (focusTarget) focusTarget.focus();
+  showDialog(modal);
 }
 
 function closeModal(modal) {
-  modal.hidden = true;
+  hideDialog(modal);
 }
 
 function closeAllOverlays() {
@@ -2932,50 +3003,44 @@ function registerServiceWorker() {
 }
 
 function handleKeyboard(event) {
-  if (isTypingInInput()) return;
+  const action = BureauEngine.shortcutAction(event, {
+    typing: isTypingInInput(),
+    overlayOpen:
+      !els.settingsDrawer.hidden ||
+      !els.helpModal.hidden ||
+      !els.resumeModal.hidden ||
+      !els.campaignInterludeModal.hidden ||
+      !els.careerModal.hidden ||
+      !els.galleryModal.hidden ||
+      !els.sketchModal.hidden,
+    tutorialOpen: !els.tutorialModal.hidden
+  });
 
-  const key = event.key.toLowerCase();
+  if (!action) return;
 
-  if (key === "escape") {
+  if (action === "close") {
     closeAllOverlays();
     return;
   }
 
-  if (
-    !els.settingsDrawer.hidden ||
-    !els.helpModal.hidden ||
-    !els.resumeModal.hidden ||
-    !els.campaignInterludeModal.hidden ||
-    !els.careerModal.hidden ||
-    !els.galleryModal.hidden ||
-    !els.sketchModal.hidden
-  ) {
-    if (key === "?") {
-      event.preventDefault();
+  event.preventDefault();
+
+  const actions = {
+    approve: () => decide("approve"),
+    deny: () => decide("deny"),
+    escalate: () => decide("escalate"),
+    scan: () => scanCase(),
+    coffee: () => coffeeBreak(),
+    hotline: () => callHotline(),
+    panic: () => panic(),
+    undo: () => undoLastStamp(),
+    help: () => {
       closeDrawer();
       openModal(els.helpModal);
     }
-    return;
-  }
-
-  if (!els.tutorialModal.hidden) return;
-
-  const shortcuts = {
-    a: () => decide("approve"),
-    d: () => decide("deny"),
-    e: () => decide("escalate"),
-    s: () => scanCase(),
-    c: () => coffeeBreak(),
-    h: () => callHotline(),
-    p: () => panic(),
-    u: () => undoLastStamp(),
-    "?": () => openModal(els.helpModal)
   };
 
-  if (shortcuts[key]) {
-    event.preventDefault();
-    shortcuts[key]();
-  }
+  actions[action]();
 }
 
 function resizeCanvas() {

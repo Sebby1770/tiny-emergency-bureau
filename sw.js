@@ -62,7 +62,13 @@ async function networkFirst(request) {
     const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
     let response;
     try {
-      response = await fetch(request, { signal: controller.signal });
+      // `no-cache` makes this a real network check. Without it the fetch
+      // inherits the page's default cache mode, so on any host that does not
+      // send an explicit no-cache header the browser's HTTP cache can answer
+      // with the old file — and "network-first" silently becomes
+      // "HTTP-cache-first". Revalidation is a conditional request, so an
+      // unchanged file still costs only a 304.
+      response = await fetch(request, { signal: controller.signal, cache: "no-cache" });
     } finally {
       clearTimeout(timer);
     }
