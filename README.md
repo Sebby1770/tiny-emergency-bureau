@@ -52,7 +52,14 @@ You play the desk clerk for a tiny municipal emergency bureau. Approve, deny, or
 | `?` | Open help modal |
 | `Esc` | Close modals and settings |
 
-Shortcuts are disabled while typing in form fields.
+Shortcuts are disabled while typing in form fields, while any dialog or the
+settings drawer is open (only `?` and `Esc` work there), and whenever Cmd, Ctrl
+or Alt is held — so the browser's own copy, print, select-all and bookmark
+shortcuts always reach the browser.
+
+Dialogs are genuinely modal: while one is open the desk behind it is `inert`, so
+Tab cannot wander out of it and screen readers do not announce the page beneath.
+Closing a dialog returns focus to the control that opened it.
 
 On mobile, swipe **right** to approve and **left** to deny on the case panel.
 
